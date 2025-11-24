@@ -1,0 +1,54 @@
+{
+  "recommendations": [
+    // Python
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    "ms-python.flake8",
+
+    // JavaScript/TypeScript
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+
+    // React/Next.js
+    "dsznajder.es7-react-js-snippets",
+
+    // Docker
+    "ms-azuretools.vscode-docker",
+
+    // Git
+    "eamodio.gitlens",
+
+    // Markdown
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+
+    // YAML
+    "redhat.vscode-yaml",
+
+    // EditorConfig
+    "editorconfig.editorconfig",
+
+    // Tailwind CSS
+    "bradlc.vscode-tailwindcss",
+
+    // Path intellisense
+    "christian-kohler.path-intellisense",
+
+    // Auto rename tag
+    "formulahendry.auto-rename-tag",
+
+    // Better comments
+    "aaron-bond.better-comments",
+
+    // Error lens
+    "usernamehw.errorlens",
+
+    // Color highlight
+    "naumovs.color-highlight",
+
+    // DotENV
+    "mikestead.dotenv"
+  ]
+}

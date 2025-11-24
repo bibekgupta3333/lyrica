@@ -1,0 +1,72 @@
+# AI Digest Ignore
+# Files and directories to exclude from AI context
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+*.egg-info/
+.turbo/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Lock files (too large)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+poetry.lock
+
+# Generated files
+coverage/
+.nyc_output/
+htmlcov/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Docker
+.dockerignore
+
+# Migrations (already documented in DB schema)
+alembic/versions/*.py
+
+# Test outputs
+test-results/
+playwright-report/
+
+# Documentation that's too long
+docs/guides/DEPLOYMENT_GUIDE.md
+docs/architecture/SYSTEM_ARCHITECTURE.md
+
+# Generated API docs
+openapi.json
+swagger.json

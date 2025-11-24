@@ -1,0 +1,694 @@
+# Lyrica - AI-Powered Complete Song Generator
+
+# Cursor Rules for Consistent Code Generation
+
+## Project Overview
+
+Lyrica is a full-stack monorepo for an AI-powered **complete song generator** that creates:
+- 🎵 **Full Songs**: Lyrics + Vocals + Instrumental Music
+- 🎤 **Voice Synthesis**: Text-to-speech with pitch control and effects
+- 🎹 **Music Composition**: Genre-matched instrumental generation
+- 🎼 **Professional Production**: Multi-track mixing and mastering
+
+**Tech Stack:**
+- Backend: FastAPI + PostgreSQL + ChromaDB + LangGraph + Ollama + Audio ML Models
+- Frontend: Next.js (web) + React Native CLI (mobile)
+- Audio: Bark/Coqui TTS + MusicGen/AudioCraft + librosa + pydub
+- Infrastructure: Docker, Kubernetes, AWS, Terraform
+
+## Tech Stack
+
+### Backend (lyrica-backend/)
+
+- Language: Python 3.12+
+- Framework: FastAPI 0.109+ with async/await
+- Database: PostgreSQL 15+ with SQLAlchemy 2.0+ (async)
+- ORM: SQLAlchemy with Alembic migrations
+- Vector Store: ChromaDB (local)
+- LLM: Ollama (Llama 3 / Mistral)
+- Agents: LangGraph for multi-agent orchestration
+- Auth: JWT with bcrypt
+- Logging: Loguru (structured logging)
+- Testing: pytest with pytest-asyncio
+- Code Quality: Black, isort, Flake8, mypy
+
+### Frontend Web (lyrica-web/)
+
+- Framework: Next.js 16+ with App Router
+- Language: TypeScript 5.3+
+- Styling: Tailwind CSS 4+
+- State: Zustand or Redux Toolkit (TBD)
+- API Client: Axios + React Query/TanStack Query
+- Testing: Jest + React Testing Library + Playwright
+
+### Frontend Mobile (lyrica-mobile/)
+
+- Framework: React Native CLI 0.76+ (NOT Expo)
+- Language: TypeScript 5.3+
+- Navigation: React Navigation 6
+- State: Zustand or Redux Toolkit (TBD)
+- Testing: Jest + Detox
+
+### Infrastructure
+
+- Containerization: Docker + Docker Compose
+- Orchestration: Kubernetes (EKS)
+- IaC: Terraform
+- Package Management: Helm
+- CI/CD: GitHub Actions
+
+## Code Style & Formatting
+
+### Python (Backend)
+
+- Indentation: 4 spaces
+- Line length: 100 characters
+- Formatter: Black with `--line-length=100`
+- Import sorting: isort with `profile = "black"`
+- Type hints: Use for all function parameters and returns
+- Docstrings: Google style for all public functions/classes
+- Async: Use async/await consistently, no blocking code
+
+```python
+# Good Example
+async def get_lyrics_by_id(
+    lyrics_id: int,
+    db: AsyncSession,
+) -> Optional[Lyrics]:
+    """
+    Retrieve lyrics by ID from database.
+
+    Args:
+        lyrics_id: The ID of the lyrics to retrieve
+        db: Database session
+
+    Returns:
+        Lyrics object if found, None otherwise
+    """
+    result = await db.execute(
+        select(Lyrics).where(Lyrics.id == lyrics_id)
+    )
+    return result.scalar_one_or_none()
+```
+
+### TypeScript/JavaScript (Frontend)
+
+- Indentation: 2 spaces
+- Line length: 100 characters
+- Quotes: Single quotes
+- Semicolons: Yes
+- Trailing comma: ES5
+- Arrow functions: Avoid parens when possible
+- Type safety: Strict TypeScript, no `any` unless absolutely necessary
+
+```typescript
+// Good Example
+const fetchLyrics = async (id: string): Promise<Lyrics> => {
+  const response = await apiClient.get<Lyrics>(`/lyrics/${id}`);
+  return response.data;
+};
+
+interface LyricsProps {
+  id: string;
+  onUpdate?: (lyrics: Lyrics) => void;
+}
+
+export const LyricsDisplay: React.FC<LyricsProps> = ({ id, onUpdate }) => {
+  // Component implementation
+};
+```
+
+## File Structure & Naming
+
+### Backend
+
+- Models: `app/models/entity_name.py` (snake_case, singular)
+- Schemas: `app/schemas/entity_name.py` (Pydantic models)
+- CRUD: `app/crud/entity_name.py` (CRUD operations)
+- API Endpoints: `app/api/v1/endpoints/resource.py`
+- Services: `app/services/service_name.py` (business logic)
+- Utils: `app/utils/util_name.py`
+- Tests: Mirror structure in `tests/` with `test_` prefix
+
+### Frontend
+
+- Components: `components/ComponentName.tsx` (PascalCase)
+- Pages: `app/route/page.tsx` (Next.js App Router)
+- Hooks: `hooks/useSomething.ts` (camelCase with 'use' prefix)
+- Utils: `lib/utilName.ts` (camelCase)
+- Types: `types/entityName.ts` or co-located with component
+- Styles: Tailwind classes inline, CSS modules for complex styles
+
+## Architecture Patterns
+
+### Backend Patterns
+
+#### Async Database Operations
+
+```python
+# Always use async SQLAlchemy
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+async def get_all_lyrics(db: AsyncSession, skip: int = 0, limit: int = 100):
+    result = await db.execute(
+        select(Lyrics).offset(skip).limit(limit)
+    )
+    return result.scalars().all()
+```
+
+#### Dependency Injection
+
+```python
+from fastapi import Depends
+from app.db.session import get_db
+
+@router.get("/lyrics/{id}")
+async def read_lyrics(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Endpoint implementation
+```
+
+#### Error Handling
+
+```python
+from fastapi import HTTPException, status
+
+async def get_lyrics_or_404(lyrics_id: int, db: AsyncSession) -> Lyrics:
+    lyrics = await crud.lyrics.get(db, id=lyrics_id)
+    if not lyrics:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lyrics with id {lyrics_id} not found"
+        )
+    return lyrics
+```
+
+#### Logging
+
+```python
+from loguru import logger
+
+logger.info("Processing lyrics generation", lyrics_id=lyrics_id, user_id=user_id)
+logger.error("Failed to generate lyrics", error=str(e), lyrics_id=lyrics_id)
+```
+
+### Frontend Patterns
+
+#### API Calls with React Query
+
+```typescript
+import { useQuery, useMutation } from '@tanstack/react-query';
+
+export const useLyrics = (id: string) => {
+  return useQuery({
+    queryKey: ['lyrics', id],
+    queryFn: () => fetchLyrics(id),
+  });
+};
+
+export const useGenerateLyrics = () => {
+  return useMutation({
+    mutationFn: (params: GenerateParams) => generateLyrics(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lyrics'] });
+    },
+  });
+};
+```
+
+#### Component Structure
+
+```typescript
+// 1. Imports
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/Button';
+
+// 2. Types
+interface Props {
+  title: string;
+  onSubmit: (data: FormData) => void;
+}
+
+// 3. Component
+export const LyricsForm: React.FC<Props> = ({ title, onSubmit }) => {
+  // 3a. State
+  const [formData, setFormData] = useState<FormData>(initialState);
+
+  // 3b. Hooks
+  const { data, isLoading } = useLyrics();
+
+  // 3c. Effects
+  useEffect(() => {
+    // Side effects
+  }, []);
+
+  // 3d. Handlers
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  // 3e. Render
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* JSX */}
+    </form>
+  );
+};
+```
+
+## Database
+
+### Model Definition
+
+```python
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from app.db.base_class import Base
+
+class Lyrics(Base):
+    """Lyrics entity representing generated song lyrics."""
+
+    __tablename__ = "lyrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    genre = Column(String(50))
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+    # Relationships
+    user = relationship("User", back_populates="lyrics")
+    sections = relationship("LyricsSection", back_populates="lyrics", cascade="all, delete-orphan")
+```
+
+### Migrations
+
+- Always create migrations for schema changes: `alembic revision --autogenerate -m "description"`
+- Test migrations both up and down
+- Never edit existing migrations, create new ones
+
+## Testing
+
+### Backend Tests
+
+```python
+import pytest
+from httpx import AsyncClient
+from app.main import app
+
+@pytest.mark.asyncio
+async def test_create_lyrics(client: AsyncClient, test_user):
+    response = await client.post(
+        "/api/v1/lyrics/",
+        json={"title": "Test Song", "content": "Verse 1..."},
+        headers={"Authorization": f"Bearer {test_user.token}"}
+    )
+    assert response.status_code == 201
+    assert response.json()["title"] == "Test Song"
+```
+
+### Frontend Tests
+
+```typescript
+import { render, screen, fireEvent } from '@testing-library/react';
+import { LyricsForm } from './LyricsForm';
+
+describe('LyricsForm', () => {
+  it('should submit form with valid data', async () => {
+    const onSubmit = jest.fn();
+    render(<LyricsForm onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Test Song' },
+    });
+    fireEvent.click(screen.getByText('Generate'));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Test Song',
+    }));
+  });
+});
+```
+
+## API Design
+
+### Endpoints
+
+- RESTful naming: `/api/v1/lyrics/`, `/api/v1/users/`
+- Versioning: Always use `/api/v1/`
+- Plural resources: `/lyrics` not `/lyric`
+- Nested resources: `/lyrics/{id}/sections/`
+- Actions: POST to `/lyrics/{id}/regenerate` for non-CRUD operations
+
+### Request/Response
+
+```python
+from pydantic import BaseModel, Field
+
+class LyricsCreate(BaseModel):
+    """Request schema for creating lyrics."""
+    title: str = Field(..., min_length=1, max_length=200)
+    prompt: str = Field(..., min_length=10)
+    genre: Optional[str] = None
+    mood: Optional[str] = None
+
+class LyricsResponse(BaseModel):
+    """Response schema for lyrics."""
+    id: int
+    title: str
+    content: str
+    genre: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+```
+
+## Error Handling
+
+### Backend
+
+```python
+from fastapi import HTTPException, status
+
+# Use appropriate status codes
+raise HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="Invalid input: prompt must be at least 10 characters"
+)
+
+# Provide helpful error messages
+raise HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail=f"Lyrics with id {lyrics_id} not found"
+)
+```
+
+### Frontend
+
+```typescript
+try {
+  const lyrics = await generateLyrics(params);
+  showSuccess('Lyrics generated successfully!');
+} catch (error) {
+  if (error.response?.status === 400) {
+    showError('Invalid input. Please check your prompt.');
+  } else if (error.response?.status === 429) {
+    showError('Rate limit exceeded. Please try again later.');
+  } else {
+    showError('An unexpected error occurred. Please try again.');
+  }
+  logger.error('Failed to generate lyrics', { error });
+}
+```
+
+## Security
+
+### Authentication
+
+- Always validate JWT tokens
+- Use `Depends(get_current_user)` for protected endpoints
+- Never store passwords in plain text (use bcrypt)
+- Implement rate limiting on auth endpoints
+
+### Input Validation
+
+- Use Pydantic for request validation
+- Sanitize user inputs before processing
+- Validate file uploads (type, size)
+- Escape SQL queries (SQLAlchemy handles this)
+
+### CORS
+
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,  # Not ["*"] in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+## Environment Configuration
+
+### Backend (.env)
+
+```bash
+# Database
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/lyrica_dev
+
+# Security
+SECRET_KEY=your-secret-key-here
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# External Services
+OLLAMA_BASE_URL=http://localhost:11434
+CHROMA_HOST=localhost
+CHROMA_PORT=8001
+
+# Environment
+ENVIRONMENT=development
+DEBUG=true
+LOG_LEVEL=INFO
+```
+
+### Frontend (.env.local)
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+NEXT_PUBLIC_APP_NAME=Lyrica
+NEXT_PUBLIC_ENVIRONMENT=development
+```
+
+## Documentation
+
+### Code Comments
+
+- Write self-documenting code (clear variable/function names)
+- Add comments for complex logic or non-obvious decisions
+- Keep comments up-to-date with code changes
+- Use TODO/FIXME/NOTE markers with context
+
+### Docstrings
+
+- Required for all public functions, classes, and modules
+- Use Google style for Python
+- Use JSDoc for TypeScript complex functions
+
+```python
+def calculate_similarity(lyrics_a: str, lyrics_b: str) -> float:
+    """
+    Calculate semantic similarity between two lyrics.
+
+    Uses cosine similarity on sentence embeddings to determine
+    how similar two lyrics are in content and style.
+
+    Args:
+        lyrics_a: First lyrics text
+        lyrics_b: Second lyrics text
+
+    Returns:
+        Similarity score between 0.0 and 1.0, where 1.0 is identical
+
+    Raises:
+        ValueError: If either lyrics is empty or None
+
+    Example:
+        >>> score = calculate_similarity("verse 1...", "verse 2...")
+        >>> print(f"Similarity: {score:.2f}")
+        Similarity: 0.85
+    """
+```
+
+## Best Practices
+
+### General
+
+- Follow DRY (Don't Repeat Yourself) principle
+- Write modular, reusable code
+- Keep functions small and focused (single responsibility)
+- Use meaningful variable and function names
+- Handle errors gracefully, never fail silently
+- Log important events and errors
+- Write tests for critical functionality
+
+### Backend Specific
+
+- Use async/await consistently
+- Avoid blocking operations
+- Use database transactions for multi-step operations
+- Implement proper connection pooling
+- Cache expensive operations (Redis)
+- Use background tasks for long-running operations (Celery/Dramatiq)
+
+### Frontend Specific
+
+- Optimize bundle size (code splitting, lazy loading)
+- Implement proper loading states
+- Handle offline scenarios
+- Use React.memo for expensive components
+- Debounce/throttle user inputs
+- Optimize images (use next/image)
+
+## Common Pitfalls to Avoid
+
+### Backend
+
+❌ Don't: Use blocking sync code in async functions
+✅ Do: Use async libraries (asyncpg, httpx, etc.)
+
+❌ Don't: Store sensitive data in logs
+✅ Do: Redact passwords, tokens, and PII
+
+❌ Don't: Return internal errors to clients
+✅ Do: Return user-friendly error messages
+
+❌ Don't: Use `select *` or load all relations
+✅ Do: Select only needed columns, lazy load relations
+
+### Frontend
+
+❌ Don't: Fetch data in render methods
+✅ Do: Use useEffect or React Query
+
+❌ Don't: Store sensitive data in localStorage
+✅ Do: Use httpOnly cookies for tokens
+
+❌ Don't: Mutate state directly
+✅ Do: Use setState or state management library
+
+❌ Don't: Use inline styles everywhere
+✅ Do: Use Tailwind classes or CSS modules
+
+## Git Commit Messages
+
+Follow conventional commits:
+
+```
+feat(backend): add lyrics generation endpoint
+fix(web): resolve infinite loop in lyrics display
+docs(mobile): update setup instructions
+refactor(backend): extract agent logic to service
+test(web): add tests for lyrics form
+chore(deps): update dependencies
+```
+
+## Performance
+
+### Backend
+
+- Use database indexes on frequently queried columns
+- Implement pagination for list endpoints (default limit: 100)
+- Use connection pooling (SQLAlchemy)
+- Cache frequent queries (Redis)
+- Use async operations for I/O
+- Implement request rate limiting
+
+### Frontend
+
+- Lazy load routes and components
+- Optimize images (WebP, proper sizing)
+- Minimize bundle size (analyze with webpack-bundle-analyzer)
+- Use React.memo for expensive renders
+- Debounce API calls (300ms for search)
+- Implement virtual scrolling for long lists
+
+## Accessibility
+
+### Web
+
+- Use semantic HTML (header, nav, main, footer)
+- Provide alt text for images
+- Ensure keyboard navigation works
+- Use proper ARIA labels
+- Test with screen readers
+- Maintain color contrast ratios (WCAG AA)
+
+### Mobile
+
+- Support screen readers (iOS VoiceOver, Android TalkBack)
+- Provide sufficient touch targets (44x44pt minimum)
+- Support dynamic type sizes
+- Test with accessibility inspector
+
+## Deployment
+
+### Docker
+
+- Use multi-stage builds to minimize image size
+- Don't run as root in containers
+- Use .dockerignore to exclude unnecessary files
+- Pin dependency versions
+- Use health checks in docker-compose
+
+### Kubernetes
+
+- Define resource limits and requests
+- Use liveness and readiness probes
+- Implement horizontal pod autoscaling
+- Use secrets for sensitive data
+- Follow 12-factor app principles
+
+## Monitoring
+
+### Logging
+
+- Log all errors with context
+- Use structured logging (JSON)
+- Include request IDs for tracing
+- Set appropriate log levels (DEBUG/INFO/WARNING/ERROR)
+- Don't log sensitive information
+
+### Metrics
+
+- Track API response times
+- Monitor database connection pool
+- Track error rates
+- Monitor LLM token usage
+- Set up alerts for anomalies
+
+---
+
+## Quick Reference
+
+### Create New Feature
+
+1. Backend: Model → Schema → CRUD → Endpoint → Test
+2. Frontend: Type → API Hook → Component → Test
+3. Update documentation
+4. Run linters and formatters
+5. Write/update tests
+
+### Code Review Checklist
+
+- [ ] Follows style guide
+- [ ] Has proper type hints/types
+- [ ] Includes tests
+- [ ] Has appropriate error handling
+- [ ] Logged important operations
+- [ ] Updated documentation
+- [ ] No sensitive data exposed
+- [ ] Performance considered
+- [ ] Accessibility considered (frontend)
+
+---
+
+## References
+
+- Backend Docs: `/lyrica-backend/README.md`
+- Frontend Web Docs: `/lyrica-web/README.md`
+- Mobile Docs: `/lyrica-mobile/README.md`
+- Architecture: `/docs/architecture/SYSTEM_ARCHITECTURE.md`
+- Database: `/docs/architecture/DATABASE_DESIGN.md`
+- Editor Setup: `/docs/guides/EDITOR_SETUP.md`
+- Status: `/docs/PROJECT_STATUS.md`

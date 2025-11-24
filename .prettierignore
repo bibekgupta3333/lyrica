@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+__pycache__/
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+*.pyc
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Generated files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+poetry.lock
+
+# Docs
+docs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# Git
+.git/
+.gitignore
