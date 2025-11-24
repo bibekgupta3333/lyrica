@@ -27,7 +27,14 @@
     "setup": "pnpm install && cd lyrica-backend && bash scripts/setup.sh && cd ..",
     "db:migrate": "cd lyrica-backend && make db-migrate",
     "db:upgrade": "cd lyrica-backend && make db-upgrade",
-    "db:seed": "cd lyrica-backend && make db-seed"
+    "db:seed": "cd lyrica-backend && make db-seed",
+    "kill:ports": "lsof -ti:8000,3000,8081,5432,6379,8001 2>/dev/null | xargs kill -9 2>/dev/null || echo '✅ All ports are free'",
+    "kill:backend": "lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null || echo '✅ Backend port (8000) is free'",
+    "kill:web": "lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null || echo '✅ Web port (3000) is free'",
+    "kill:mobile": "lsof -ti:8081 2>/dev/null | xargs kill -9 2>/dev/null || echo '✅ Mobile port (8081) is free'",
+    "kill:all": "pnpm kill:ports && docker-compose down",
+    "restart": "pnpm kill:all && pnpm docker:up && pnpm dev",
+    "restart:backend": "pnpm kill:backend && pnpm dev:backend"
   },
   "devDependencies": {
     "turbo": "^1.11.3"
@@ -38,4 +45,3 @@
   },
   "packageManager": "pnpm@8.15.1"
 }
-
