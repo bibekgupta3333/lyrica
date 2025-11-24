@@ -1,0 +1,18 @@
+{
+  "name": "lyrica-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lyrica Backend - FastAPI Server",
+  "scripts": {
+    "dev": "bash -c 'source venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000'",
+    "build": "echo 'Backend build: Installing dependencies' && pip install -r requirements-min.txt",
+    "test": "bash -c 'source venv/bin/activate && pytest'",
+    "lint": "bash -c 'source venv/bin/activate && flake8 app/ tests/'",
+    "format": "bash -c 'source venv/bin/activate && black app/ tests/ && isort app/ tests/'",
+    "clean": "rm -rf __pycache__ .pytest_cache .mypy_cache htmlcov",
+    "db:migrate": "make db-migrate",
+    "db:upgrade": "make db-upgrade",
+    "db:seed": "make db-seed"
+  }
+}
+

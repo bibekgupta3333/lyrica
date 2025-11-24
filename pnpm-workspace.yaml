@@ -1,0 +1,5 @@
+packages:
+  - 'lyrica-backend'
+  - 'lyrica-web'
+  - 'lyrica-mobile'
+

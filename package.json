@@ -1,0 +1,41 @@
+{
+  "name": "lyrica",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lyrica - Agentic Song Lyrics Generator Monorepo",
+  "workspaces": [
+    "lyrica-backend",
+    "lyrica-web",
+    "lyrica-mobile"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel --filter=lyrica-backend --filter=lyrica-web",
+    "dev:all": "turbo run dev --parallel",
+    "dev:backend": "turbo run dev --filter=lyrica-backend",
+    "dev:web": "turbo run dev --filter=lyrica-web",
+    "dev:mobile": "cd lyrica-mobile && pnpm start",
+    "build": "turbo run build",
+    "build:backend": "turbo run build --filter=lyrica-backend",
+    "build:web": "turbo run build --filter=lyrica-web",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "setup": "pnpm install && cd lyrica-backend && bash scripts/setup.sh && cd ..",
+    "db:migrate": "cd lyrica-backend && make db-migrate",
+    "db:upgrade": "cd lyrica-backend && make db-upgrade",
+    "db:seed": "cd lyrica-backend && make db-seed"
+  },
+  "devDependencies": {
+    "turbo": "^1.11.3"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.1"
+}
+

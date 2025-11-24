@@ -108,6 +108,77 @@
 - [ ] 2.9.7 Set up volume mounts
 - [ ] 2.9.8 Configure networking between containers
 
+### 2.10 Audio Generation System 🎵
+- [ ] 2.10.1 Set up audio processing library (librosa, pydub)
+- [ ] 2.10.2 Configure audio file storage (S3/local)
+- [ ] 2.10.3 Implement audio format conversion (MP3, WAV, OGG)
+- [ ] 2.10.4 Create audio metadata extraction service
+- [ ] 2.10.5 Implement audio streaming endpoints
+- [ ] 2.10.6 Set up audio waveform generation
+- [ ] 2.10.7 Create audio mixing and combining service
+- [ ] 2.10.8 Implement audio normalization and mastering
+
+### 2.11 Voice Synthesis & Pitch Control 🎤
+- [ ] 2.11.1 Integrate TTS model (Bark, Coqui TTS, or similar)
+- [ ] 2.11.2 Implement voice profile management
+- [ ] 2.11.3 Create pitch adjustment service (pyrubberband, soundfile)
+- [ ] 2.11.4 Implement tempo control and time-stretching
+- [ ] 2.11.5 Add vocal effects (reverb, echo, compression)
+- [ ] 2.11.6 Create multi-voice support for harmonies
+- [ ] 2.11.7 Implement prosody control (rhythm, intonation)
+- [ ] 2.11.8 Add emotion/style control for voice
+- [ ] 2.11.9 Create voice cloning capabilities (optional)
+- [ ] 2.11.10 Implement lyrics-to-speech timing sync
+
+### 2.12 Music Generation & Composition 🎹
+- [ ] 2.12.1 Integrate music generation model (MusicGen, AudioCraft)
+- [ ] 2.12.2 Implement genre-based music generation
+- [ ] 2.12.3 Create chord progression generator
+- [ ] 2.12.4 Implement melody generation service
+- [ ] 2.12.5 Add rhythm and beat generation
+- [ ] 2.12.6 Create instrumental arrangement system
+- [ ] 2.12.7 Implement music structure (intro, verse, chorus, bridge)
+- [ ] 2.12.8 Add BPM (tempo) control
+- [ ] 2.12.9 Create key and scale selection
+- [ ] 2.12.10 Implement music style transfer
+
+### 2.13 Song Assembly & Production 🎼
+- [ ] 2.13.1 Create song assembly agent (LangGraph)
+- [ ] 2.13.2 Implement lyrics-music synchronization
+- [ ] 2.13.3 Create vocal track + instrumental mixing
+- [ ] 2.13.4 Implement multi-track audio composition
+- [ ] 2.13.5 Add volume balancing and EQ
+- [ ] 2.13.6 Create fade-in/fade-out effects
+- [ ] 2.13.7 Implement audio crossfading
+- [ ] 2.13.8 Add final mastering pipeline
+- [ ] 2.13.9 Create song preview generation
+- [ ] 2.13.10 Implement song export in multiple formats
+
+### 2.14 Song Generation API Endpoints 🎧
+- [ ] 2.14.1 POST /api/v1/songs/generate - Generate complete song
+- [ ] 2.14.2 POST /api/v1/voice/synthesize - Generate vocals from lyrics
+- [ ] 2.14.3 POST /api/v1/music/generate - Generate instrumental music
+- [ ] 2.14.4 POST /api/v1/songs/mix - Mix vocals and music
+- [ ] 2.14.5 GET /api/v1/songs/{id} - Retrieve song
+- [ ] 2.14.6 GET /api/v1/songs/{id}/download - Download song file
+- [ ] 2.14.7 GET /api/v1/songs/{id}/stream - Stream song
+- [ ] 2.14.8 POST /api/v1/songs/{id}/regenerate-vocals - Re-generate vocals
+- [ ] 2.14.9 POST /api/v1/songs/{id}/regenerate-music - Re-generate music
+- [ ] 2.14.10 PUT /api/v1/songs/{id}/settings - Update audio settings
+- [ ] 2.14.11 GET /api/v1/voice/profiles - List available voices
+- [ ] 2.14.12 GET /api/v1/music/genres - List available music genres
+- [ ] 2.14.13 POST /api/v1/songs/{id}/remix - Remix existing song
+
+### 2.15 Audio Quality & Optimization 🎚️
+- [ ] 2.15.1 Implement audio quality validation
+- [ ] 2.15.2 Create audio noise reduction
+- [ ] 2.15.3 Add dynamic range compression
+- [ ] 2.15.4 Implement stereo widening
+- [ ] 2.15.5 Create audio analysis service (loudness, clarity)
+- [ ] 2.15.6 Add audio enhancement algorithms
+- [ ] 2.15.7 Implement background music separation
+- [ ] 2.15.8 Create audio performance metrics
+
 ---
 
 ## 3. Frontend Development - Web (Weeks 4-7)
@@ -145,22 +216,39 @@
 - [ ] 3.4.8 Build authentication forms
 - [ ] 3.4.9 Create responsive layout
 - [ ] 3.4.10 Implement dark/light theme
+- [ ] 3.4.11 Build audio player component 🎵
+- [ ] 3.4.12 Create waveform visualizer
+- [ ] 3.4.13 Build music controls (play, pause, seek, volume)
+- [ ] 3.4.14 Create voice selector component
+- [ ] 3.4.15 Build music genre selector
+- [ ] 3.4.16 Create audio settings panel (pitch, tempo, effects)
+- [ ] 3.4.17 Build song preview card
+- [ ] 3.4.18 Create download/export component
+- [ ] 3.4.19 Build mixing interface component
 
 ### 3.5 Pages & Features
 - [ ] 3.5.1 Home/Landing page
 - [ ] 3.5.2 Lyrics generation page
-- [ ] 3.5.3 Results/Output page
-- [ ] 3.5.4 History page
-- [ ] 3.5.5 User profile page
-- [ ] 3.5.6 Authentication pages (login/signup)
-- [ ] 3.5.7 Settings page
-- [ ] 3.5.8 About/Help page
+- [ ] 3.5.3 Song generation page 🎵
+- [ ] 3.5.4 Music studio page (mixing interface)
+- [ ] 3.5.5 Song library/player page
+- [ ] 3.5.6 Voice gallery page
+- [ ] 3.5.7 Results/Output page
+- [ ] 3.5.8 History page
+- [ ] 3.5.9 User profile page
+- [ ] 3.5.10 Authentication pages (login/signup)
+- [ ] 3.5.11 Settings page (including audio preferences)
+- [ ] 3.5.12 About/Help page
 
 ### 3.6 Real-time Features
 - [ ] 3.6.1 Implement WebSocket connection
 - [ ] 3.6.2 Add streaming lyrics display
 - [ ] 3.6.3 Show generation progress
 - [ ] 3.6.4 Add toast notifications
+- [ ] 3.6.5 Stream audio generation progress
+- [ ] 3.6.6 Real-time waveform updates
+- [ ] 3.6.7 Live audio preview during generation
+- [ ] 3.6.8 Show mixing progress in real-time
 
 ### 3.7 Testing
 - [ ] 3.7.1 Write component tests (Jest + React Testing Library)
@@ -202,27 +290,40 @@
 - [ ] 4.4.1 Create shared component library
 - [ ] 4.4.2 Build input form screens
 - [ ] 4.4.3 Build lyrics display screen
-- [ ] 4.4.4 Build history screen
-- [ ] 4.4.5 Build profile screen
-- [ ] 4.4.6 Create navigation components
-- [ ] 4.4.7 Implement gestures (swipe, pinch)
+- [ ] 4.4.4 Build audio player component 🎵
+- [ ] 4.4.5 Create music controls (native)
+- [ ] 4.4.6 Build waveform visualizer
+- [ ] 4.4.7 Create voice/genre selectors
+- [ ] 4.4.8 Build history screen
+- [ ] 4.4.9 Build profile screen
+- [ ] 4.4.10 Create navigation components
+- [ ] 4.4.11 Implement gestures (swipe, pinch)
+- [ ] 4.4.12 Build song download manager
 
 ### 4.5 Screens
 - [ ] 4.5.1 Splash screen
 - [ ] 4.5.2 Onboarding screens
 - [ ] 4.5.3 Authentication screens
 - [ ] 4.5.4 Home screen
-- [ ] 4.5.5 Generation screen
-- [ ] 4.5.6 Results screen
-- [ ] 4.5.7 History screen
-- [ ] 4.5.8 Settings screen
+- [ ] 4.5.5 Lyrics generation screen
+- [ ] 4.5.6 Song generation screen 🎵
+- [ ] 4.5.7 Music player screen
+- [ ] 4.5.8 Song library screen
+- [ ] 4.5.9 Results screen
+- [ ] 4.5.10 History screen
+- [ ] 4.5.11 Settings screen
 
 ### 4.6 Native Features
 - [ ] 4.6.1 Implement push notifications
 - [ ] 4.6.2 Add haptic feedback
 - [ ] 4.6.3 Implement biometric authentication
-- [ ] 4.6.4 Add sharing functionality
+- [ ] 4.6.4 Add sharing functionality (share songs)
 - [ ] 4.6.5 Implement file system access
+- [ ] 4.6.6 Native audio playback (background play) 🎵
+- [ ] 4.6.7 Media controls integration (lock screen)
+- [ ] 4.6.8 Download manager for songs
+- [ ] 4.6.9 Audio caching for offline playback
+- [ ] 4.6.10 Bluetooth audio device support
 
 ### 4.7 Testing
 - [ ] 4.7.1 Write component tests (Jest)
@@ -497,4 +598,3 @@
 - [ ] Test coverage > 80%
 - [ ] Successful deployment to production
 - [ ] Zero critical security vulnerabilities
-

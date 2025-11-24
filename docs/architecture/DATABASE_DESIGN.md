@@ -185,7 +185,280 @@ CREATE INDEX idx_lyrics_sections_lyrics_id ON lyrics_sections(lyrics_id);
 CREATE INDEX idx_lyrics_sections_order ON lyrics_sections(lyrics_id, section_order);
 ```
 
-#### 5. Generation History Table
+#### 5. Songs Table 🎵
+```sql
+CREATE TABLE songs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    lyrics_id UUID REFERENCES lyrics(id) ON DELETE SET NULL,
+    
+    -- Song metadata
+    title VARCHAR(255) NOT NULL,
+    artist_name VARCHAR(255),
+    genre VARCHAR(100),
+    mood VARCHAR(100),
+    bpm INTEGER,
+    key VARCHAR(10),
+    duration_seconds DECIMAL(10, 2),
+    
+    -- Generation settings
+    voice_profile_id UUID REFERENCES voice_profiles(id),
+    music_style VARCHAR(100),
+    vocal_pitch_shift INTEGER DEFAULT 0,
+    vocal_effects JSONB DEFAULT '{}',
+    music_params JSONB DEFAULT '{}',
+    
+    -- File references
+    final_audio_file_id UUID REFERENCES audio_files(id),
+    vocal_track_file_id UUID REFERENCES audio_files(id),
+    instrumental_track_file_id UUID REFERENCES audio_files(id),
+    
+    -- Quality metrics
+    audio_quality_score DECIMAL(3, 2),
+    mixing_quality_score DECIMAL(3, 2),
+    overall_rating DECIMAL(3, 2),
+    
+    -- Statistics
+    play_count INTEGER DEFAULT 0,
+    download_count INTEGER DEFAULT 0,
+    share_count INTEGER DEFAULT 0,
+    like_count INTEGER DEFAULT 0,
+    
+    -- Status
+    generation_status VARCHAR(50) DEFAULT 'pending',
+    is_public BOOLEAN DEFAULT FALSE,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    published_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Constraints
+    CONSTRAINT valid_generation_status CHECK (generation_status IN (
+        'pending', 'generating_vocals', 'generating_music', 
+        'mixing', 'mastering', 'completed', 'failed'
+    )),
+    CONSTRAINT valid_bpm CHECK (bpm IS NULL OR (bpm >= 40 AND bpm <= 220)),
+    CONSTRAINT valid_pitch_shift CHECK (vocal_pitch_shift >= -12 AND vocal_pitch_shift <= 12),
+    CONSTRAINT valid_audio_quality CHECK (audio_quality_score IS NULL OR 
+        (audio_quality_score >= 0 AND audio_quality_score <= 1))
+);
+
+-- Indexes
+CREATE INDEX idx_songs_user_id ON songs(user_id);
+CREATE INDEX idx_songs_lyrics_id ON songs(lyrics_id);
+CREATE INDEX idx_songs_genre ON songs(genre);
+CREATE INDEX idx_songs_created_at ON songs(created_at DESC);
+CREATE INDEX idx_songs_status ON songs(generation_status);
+CREATE INDEX idx_songs_is_public ON songs(is_public) WHERE is_public = TRUE;
+CREATE INDEX idx_songs_play_count ON songs(play_count DESC);
+
+-- Full-text search
+CREATE INDEX idx_songs_title_search ON songs USING gin(to_tsvector('english', title));
+```
+
+#### 6. Audio Files Table 🎧
+```sql
+CREATE TABLE audio_files (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- File information
+    file_path VARCHAR(500) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_size_bytes BIGINT NOT NULL,
+    file_format VARCHAR(20) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    
+    -- Audio properties
+    duration_seconds DECIMAL(10, 2),
+    sample_rate INTEGER,
+    bit_rate INTEGER,
+    channels INTEGER DEFAULT 2,
+    
+    -- Metadata
+    audio_type VARCHAR(50) NOT NULL,
+    waveform_data JSONB,
+    metadata JSONB DEFAULT '{}',
+    
+    -- Storage
+    storage_provider VARCHAR(50) DEFAULT 's3',
+    cdn_url VARCHAR(500),
+    is_cached BOOLEAN DEFAULT FALSE,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Constraints
+    CONSTRAINT valid_audio_type CHECK (audio_type IN (
+        'final_song', 'vocal_track', 'instrumental_track', 
+        'backing_track', 'raw_recording', 'effect_sample'
+    )),
+    CONSTRAINT valid_file_format CHECK (file_format IN ('mp3', 'wav', 'ogg', 'flac', 'm4a')),
+    CONSTRAINT valid_sample_rate CHECK (sample_rate IN (44100, 48000, 96000, 192000))
+);
+
+-- Indexes
+CREATE INDEX idx_audio_files_user_id ON audio_files(user_id);
+CREATE INDEX idx_audio_files_type ON audio_files(audio_type);
+CREATE INDEX idx_audio_files_created_at ON audio_files(created_at DESC);
+CREATE INDEX idx_audio_files_file_path ON audio_files(file_path);
+```
+
+#### 7. Voice Profiles Table 🎤
+```sql
+CREATE TABLE voice_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- Profile information
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    voice_model VARCHAR(100) NOT NULL,
+    
+    -- Voice characteristics
+    gender VARCHAR(20),
+    age_range VARCHAR(50),
+    accent VARCHAR(50),
+    language VARCHAR(10) DEFAULT 'en',
+    
+    -- Technical parameters
+    base_pitch_hz DECIMAL(10, 2),
+    pitch_range JSONB,
+    timbre_profile JSONB,
+    model_parameters JSONB DEFAULT '{}',
+    
+    -- Sample audio
+    sample_audio_file_id UUID REFERENCES audio_files(id),
+    
+    -- Availability
+    is_available BOOLEAN DEFAULT TRUE,
+    is_premium BOOLEAN DEFAULT FALSE,
+    usage_count INTEGER DEFAULT 0,
+    
+    -- Rating
+    average_rating DECIMAL(3, 2),
+    rating_count INTEGER DEFAULT 0,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Constraints
+    CONSTRAINT valid_gender CHECK (gender IN ('male', 'female', 'neutral', 'other')),
+    CONSTRAINT valid_age_range CHECK (age_range IN ('child', 'teen', 'young_adult', 'adult', 'senior'))
+);
+
+-- Indexes
+CREATE INDEX idx_voice_profiles_available ON voice_profiles(is_available);
+CREATE INDEX idx_voice_profiles_premium ON voice_profiles(is_premium);
+CREATE INDEX idx_voice_profiles_language ON voice_profiles(language);
+CREATE INDEX idx_voice_profiles_rating ON voice_profiles(average_rating DESC) 
+    WHERE average_rating IS NOT NULL;
+```
+
+#### 8. Music Tracks Table 🎹
+```sql
+CREATE TABLE music_tracks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    song_id UUID NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+    
+    -- Track information
+    track_name VARCHAR(255),
+    track_type VARCHAR(50) NOT NULL,
+    track_order INTEGER NOT NULL,
+    
+    -- Audio reference
+    audio_file_id UUID REFERENCES audio_files(id),
+    
+    -- Track properties
+    volume DECIMAL(3, 2) DEFAULT 1.0,
+    pan DECIMAL(3, 2) DEFAULT 0.0,
+    eq_settings JSONB DEFAULT '{}',
+    effects JSONB DEFAULT '[]',
+    
+    -- Timing
+    start_time_seconds DECIMAL(10, 2) DEFAULT 0.0,
+    end_time_seconds DECIMAL(10, 2),
+    fade_in_seconds DECIMAL(5, 2) DEFAULT 0.0,
+    fade_out_seconds DECIMAL(5, 2) DEFAULT 0.0,
+    
+    -- Status
+    is_muted BOOLEAN DEFAULT FALSE,
+    is_solo BOOLEAN DEFAULT FALSE,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Constraints
+    CONSTRAINT valid_track_type CHECK (track_type IN (
+        'vocal', 'instrumental', 'drums', 'bass', 'guitar', 
+        'keys', 'strings', 'effects', 'ambient'
+    )),
+    CONSTRAINT valid_volume CHECK (volume >= 0 AND volume <= 2.0),
+    CONSTRAINT valid_pan CHECK (pan >= -1.0 AND pan <= 1.0),
+    CONSTRAINT unique_track_order UNIQUE(song_id, track_order)
+);
+
+-- Indexes
+CREATE INDEX idx_music_tracks_song_id ON music_tracks(song_id);
+CREATE INDEX idx_music_tracks_type ON music_tracks(track_type);
+CREATE INDEX idx_music_tracks_order ON music_tracks(song_id, track_order);
+```
+
+#### 9. Song Generation History Table 🎼
+```sql
+CREATE TABLE song_generation_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    song_id UUID REFERENCES songs(id) ON DELETE SET NULL,
+    lyrics_id UUID REFERENCES lyrics(id) ON DELETE SET NULL,
+    
+    -- Generation parameters
+    generation_type VARCHAR(50) NOT NULL,
+    input_params JSONB NOT NULL,
+    voice_profile_id UUID REFERENCES voice_profiles(id),
+    
+    -- Process tracking
+    status VARCHAR(50) DEFAULT 'pending',
+    current_stage VARCHAR(100),
+    progress_percentage INTEGER DEFAULT 0,
+    agent_steps JSONB DEFAULT '[]',
+    
+    -- Performance metrics
+    total_time_seconds DECIMAL(10, 2),
+    vocal_generation_time DECIMAL(10, 2),
+    music_generation_time DECIMAL(10, 2),
+    mixing_time DECIMAL(10, 2),
+    
+    -- Error handling
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    
+    -- Timestamps
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Constraints
+    CONSTRAINT valid_generation_type CHECK (generation_type IN (
+        'full_song', 'vocals_only', 'music_only', 'remix', 'regenerate'
+    )),
+    CONSTRAINT valid_song_gen_status CHECK (status IN (
+        'pending', 'lyrics_ready', 'generating_vocals', 'generating_music',
+        'mixing', 'mastering', 'completed', 'failed', 'cancelled'
+    )),
+    CONSTRAINT valid_progress CHECK (progress_percentage >= 0 AND progress_percentage <= 100)
+);
+
+-- Indexes
+CREATE INDEX idx_song_gen_history_user_id ON song_generation_history(user_id);
+CREATE INDEX idx_song_gen_history_song_id ON song_generation_history(song_id);
+CREATE INDEX idx_song_gen_history_started_at ON song_generation_history(started_at DESC);
+CREATE INDEX idx_song_gen_history_status ON song_generation_history(status);
+```
+
+#### 10. Generation History Table
 ```sql
 CREATE TABLE generation_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -497,6 +770,96 @@ CREATE INDEX idx_usage_statistics_endpoint ON usage_statistics(endpoint);
 │ scopes       │
 │ is_active    │
 └──────────────┘
+
+
+═══════════════════════════════════════════════════════════════════
+  🎵 AUDIO & SONG GENERATION TABLES 🎵
+═══════════════════════════════════════════════════════════════════
+
+                    ┌─────────────────┐
+                    │  voice_profiles │
+                    │─────────────────│
+                    │ id (PK)         │
+                    │ name            │
+                    │ voice_model     │
+                    │ gender          │
+                    │ base_pitch_hz   │
+                    │ is_available    │
+                    │ sample_audio_id │──┐
+                    └──────┬──────────┘  │
+                           │ 1            │
+                           │              │
+                ┌──────────┴───────┐      │
+                │                  │      │
+         users  │ 1                │      │
+           │    │                  │ n    │
+           │ 1  │                  │      │
+           │    │         ┌────────▼──────▼─┐        ┌──────────────────────┐
+           │    └────────▶│     songs       │        │ song_generation_hist…│
+           │              │─────────────────│        │──────────────────────│
+           │              │ id (PK)         │◀───────│ id (PK)              │
+           └─────────────▶│ user_id (FK)    │        │ song_id (FK)         │
+                          │ lyrics_id (FK)  │◀───┐   │ user_id (FK)         │
+                          │ title           │    │   │ lyrics_id (FK)       │
+                          │ genre           │    │   │ generation_type      │
+                          │ bpm             │    │   │ status               │
+                          │ voice_prof… (FK)│    │   │ progress_%           │
+                          │ final_audio… (FK)───┐│   │ vocal_gen_time       │
+                          │ vocal_track…(FK)│   ││   │ music_gen_time       │
+                          │ instrumental…(FK)   ││   │ mixing_time          │
+                          │ generation_status│  ││   └──────────────────────┘
+                          └──────┬──────────┘   ││
+                                 │ 1            ││
+                                 │              ││
+                                 │ n            ││
+                          ┌──────▼──────────┐   ││
+                          │  music_tracks   │   ││
+                          │─────────────────│   ││
+                          │ id (PK)         │   ││
+                          │ song_id (FK)    │   ││
+                          │ track_name      │   ││
+                          │ track_type      │   ││
+                          │ track_order     │   ││
+                          │ audio_file_id(FK)───┤│
+                          │ volume          │   ││
+                          │ pan             │   ││
+                          │ eq_settings     │   ││
+                          │ effects         │   ││
+                          └─────────────────┘   ││
+                                                ││
+                                                ││
+                          ┌─────────────────────┘│
+                          │                      │
+                          │ n                    │ n
+                          │                      │
+                  ┌───────▼──────────┐           │
+                  │   audio_files    │◀──────────┘
+                  │──────────────────│
+                  │ id (PK)          │
+                  │ user_id (FK)     │──────▶ users.id
+                  │ file_path        │
+                  │ file_name        │
+                  │ file_size_bytes  │
+                  │ file_format      │
+                  │ audio_type       │
+                  │ duration_seconds │
+                  │ sample_rate      │
+                  │ waveform_data    │
+                  │ cdn_url          │
+                  └──────────────────┘
+
+Relationships:
+- users (1) ──< (n) songs
+- users (1) ──< (n) audio_files
+- lyrics (1) ──< (n) songs
+- songs (1) ──< (n) music_tracks
+- songs (1) ──> (1) audio_files (final_audio)
+- songs (1) ──> (1) audio_files (vocal_track)
+- songs (1) ──> (1) audio_files (instrumental_track)
+- songs (n) ──> (1) voice_profiles
+- music_tracks (n) ──> (1) audio_files
+- voice_profiles (1) ──> (1) audio_files (sample)
+- songs (1) ──< (n) song_generation_history
 ```
 
 ---
@@ -1174,4 +1537,3 @@ Key features:
 - ✅ Backup and disaster recovery
 - ✅ Security with encryption and audit logging
 - ✅ Performance optimization techniques
-
