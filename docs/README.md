@@ -79,6 +79,12 @@ docs/
   - Project-specific prompts and patterns
   - Maintaining consistency across AI tools
 
+- **[DATABASE_VIEWERS.md](./guides/DATABASE_VIEWERS.md)** 🐘🔴
+  - pgAdmin setup and usage (PostgreSQL UI)
+  - Redis Commander guide (Redis UI)
+  - Database management tips
+  - Troubleshooting database issues
+
 - **[EDITOR_SETUP.md](./guides/EDITOR_SETUP.md)**
   - VSCode configuration
   - EditorConfig and Prettier
@@ -124,6 +130,7 @@ docs/
 - **Get started quickly** → [QUICK_START.md](./getting-started/QUICK_START.md)
 - **Design the UI in Figma** → [FIGMA_DESIGN_PROMPT.md](./design/FIGMA_DESIGN_PROMPT.md) 🎨
 - **Use AI assistants effectively** → [AI_ASSISTANT_SETUP.md](./guides/AI_ASSISTANT_SETUP.md) 🤖
+- **Manage databases visually** → [DATABASE_VIEWERS.md](./guides/DATABASE_VIEWERS.md) 🐘🔴
 - **Set up my editor** → [EDITOR_SETUP.md](./guides/EDITOR_SETUP.md)
 - **Understand the architecture** → [SYSTEM_ARCHITECTURE.md](./architecture/SYSTEM_ARCHITECTURE.md)
 - **Set up mobile development** → [MOBILE_SETUP.md](./guides/MOBILE_SETUP.md)
@@ -139,6 +146,7 @@ docs/
 | **First Steps** | [Start here](./getting-started/START_HERE.md) |
 | **Figma Design** 🎨 | [Design prompt](./design/FIGMA_DESIGN_PROMPT.md) |
 | **AI Assistants** 🤖 | [Cursor/Copilot setup](./guides/AI_ASSISTANT_SETUP.md) |
+| **Database Viewers** 🐘🔴 | [pgAdmin & Redis UI](./guides/DATABASE_VIEWERS.md) |
 | **Editor Setup** | [VSCode & formatting](./guides/EDITOR_SETUP.md) |
 | **Monorepo** | [TurboRepo guide](./guides/MONOREPO_GUIDE.md) |
 | **Mobile** | [iOS/Android setup](./guides/MOBILE_SETUP.md) |
