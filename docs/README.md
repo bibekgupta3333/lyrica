@@ -57,6 +57,18 @@ docs/
   - Table relationships
   - ERD diagrams
 
+## 🎨 Design
+
+**UI/UX design specifications:**
+
+- **[FIGMA_DESIGN_PROMPT.md](./design/FIGMA_DESIGN_PROMPT.md)** 🎨
+  - Complete Figma design prompt
+  - Component-based design system
+  - Industry-standard color palette
+  - 10+ screen designs specified
+  - Responsive design guidelines
+  - Accessibility requirements
+
 ## 📖 Guides
 
 **Detailed how-to guides:**
@@ -110,6 +122,7 @@ docs/
 ### I want to...
 
 - **Get started quickly** → [QUICK_START.md](./getting-started/QUICK_START.md)
+- **Design the UI in Figma** → [FIGMA_DESIGN_PROMPT.md](./design/FIGMA_DESIGN_PROMPT.md) 🎨
 - **Use AI assistants effectively** → [AI_ASSISTANT_SETUP.md](./guides/AI_ASSISTANT_SETUP.md) 🤖
 - **Set up my editor** → [EDITOR_SETUP.md](./guides/EDITOR_SETUP.md)
 - **Understand the architecture** → [SYSTEM_ARCHITECTURE.md](./architecture/SYSTEM_ARCHITECTURE.md)
@@ -124,6 +137,7 @@ docs/
 |-------|----------|
 | **Quick Start** | [5-min guide](./getting-started/QUICK_START.md) |
 | **First Steps** | [Start here](./getting-started/START_HERE.md) |
+| **Figma Design** 🎨 | [Design prompt](./design/FIGMA_DESIGN_PROMPT.md) |
 | **AI Assistants** 🤖 | [Cursor/Copilot setup](./guides/AI_ASSISTANT_SETUP.md) |
 | **Editor Setup** | [VSCode & formatting](./guides/EDITOR_SETUP.md) |
 | **Monorepo** | [TurboRepo guide](./guides/MONOREPO_GUIDE.md) |
