@@ -62,12 +62,15 @@ dmypy.json
 # ChromaDB
 data/chromadb/
 
-# Model Cache
+# ML Model Cache (not app/models/ which is code)
 .cache/
-models/
+ml_models/
 *.bin
 *.pt
 *.pth
+*.onnx
+*.h5
+*.hdf5
 
 # Temporary files
 *.tmp
@@ -77,4 +80,3 @@ temp/
 
 # Alembic
 alembic/versions/*.pyc
-
