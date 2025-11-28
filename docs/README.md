@@ -107,6 +107,30 @@ docs/
   - Terraform configuration
   - CI/CD pipelines
 
+## 🤖 Implementation Guides
+
+**Technical implementation documentation:**
+
+- **[AGENT_SYSTEM_GUIDE.md](./implementation/AGENT_SYSTEM_GUIDE.md)** 🦜🔗
+  - Multi-agent song generation system
+  - LangGraph workflow orchestration
+  - Planning, Generation, Refinement, Evaluation agents
+  - API usage and Python examples
+  - Testing and troubleshooting
+
+- **[FLEXIBLE_LLM_GUIDE.md](./implementation/FLEXIBLE_LLM_GUIDE.md)** 🔌
+  - Provider-agnostic LLM architecture
+  - Ollama, OpenAI, Gemini, Grok support
+  - Instant provider switching
+  - Configuration and usage examples
+
+- **[RAG_IMPLEMENTATION.md](./implementation/RAG_IMPLEMENTATION.md)** 🧠
+  - Retrieval-Augmented Generation system
+  - ChromaDB vector store setup
+  - Document ingestion and search
+  - Embedding and chunking strategies
+  - API reference and examples
+
 ## 📋 Planning & Status
 
 **Project planning and tracking:**
@@ -128,6 +152,9 @@ docs/
 ### I want to...
 
 - **Get started quickly** → [QUICK_START.md](./getting-started/QUICK_START.md)
+- **Generate songs with agents** 🦜🔗 → [AGENT_SYSTEM_GUIDE.md](./implementation/AGENT_SYSTEM_GUIDE.md)
+- **Use RAG for lyrics** 🧠 → [RAG_IMPLEMENTATION.md](./implementation/RAG_IMPLEMENTATION.md)
+- **Switch LLM providers** 🔌 → [FLEXIBLE_LLM_GUIDE.md](./implementation/FLEXIBLE_LLM_GUIDE.md)
 - **Design the UI in Figma** → [FIGMA_DESIGN_PROMPT.md](./design/FIGMA_DESIGN_PROMPT.md) 🎨
 - **Use AI assistants effectively** → [AI_ASSISTANT_SETUP.md](./guides/AI_ASSISTANT_SETUP.md) 🤖
 - **Manage databases visually** → [DATABASE_VIEWERS.md](./guides/DATABASE_VIEWERS.md) 🐘🔴
@@ -154,6 +181,9 @@ docs/
 | **Database** | [Schema & design](./architecture/DATABASE_DESIGN.md) |
 | **Deployment** | [AWS & K8s guide](./guides/DEPLOYMENT_GUIDE.md) |
 | **Roadmap** | [Work breakdown](./planning/WBS.md) |
+| **Agent System** 🦜🔗 | [Multi-agent workflow](./implementation/AGENT_SYSTEM_GUIDE.md) |
+| **RAG System** 🧠 | [RAG implementation](./implementation/RAG_IMPLEMENTATION.md) |
+| **LLM Providers** 🔌 | [Flexible LLM guide](./implementation/FLEXIBLE_LLM_GUIDE.md) |
 
 ## 💡 Documentation Tips
 
