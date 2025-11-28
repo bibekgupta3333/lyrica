@@ -35,6 +35,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
 
     # Timestamps
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

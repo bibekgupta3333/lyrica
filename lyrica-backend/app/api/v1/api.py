@@ -5,17 +5,33 @@ Combines all API v1 endpoints.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, rag, songs
+from app.api.v1.endpoints import auth, feedback, health, lyrics, rag, songs, styles
 
 # Create API v1 router
 api_router = APIRouter()
 
 # Include endpoint routers
+
+# Health & System
 api_router.include_router(health.router, prefix="/health", tags=["Health"])
 
+# Authentication & Authorization
+api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+
+# RAG & Vector Search
 api_router.include_router(rag.router, prefix="/rag", tags=["RAG & Vector Search"])
 
+# Agent-Based Song Generation
 api_router.include_router(songs.router, prefix="/songs", tags=["Song Generation (Agents)"])
+
+# Lyrics CRUD
+api_router.include_router(lyrics.router, prefix="/lyrics", tags=["Lyrics Management"])
+
+# Feedback
+api_router.include_router(feedback.router, prefix="/feedback", tags=["User Feedback"])
+
+# Styles & Genres
+api_router.include_router(styles.router, prefix="/styles", tags=["Styles & Genres"])
 
 # TODO: Add more routers as they are implemented
 # api_router.include_router(

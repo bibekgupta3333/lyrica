@@ -111,6 +111,13 @@ docs/
 
 **Technical implementation documentation:**
 
+- **[API_REFERENCE.md](./implementation/API_REFERENCE.md)** 🌐
+  - Complete REST API documentation
+  - 35 endpoints across 7 categories
+  - Request/response examples
+  - Authentication guide
+  - Quick reference for all endpoints
+
 - **[AGENT_SYSTEM_GUIDE.md](./implementation/AGENT_SYSTEM_GUIDE.md)** 🦜🔗
   - Multi-agent song generation system
   - LangGraph workflow orchestration
@@ -152,6 +159,7 @@ docs/
 ### I want to...
 
 - **Get started quickly** → [QUICK_START.md](./getting-started/QUICK_START.md)
+- **See all API endpoints** 🌐 → [API_REFERENCE.md](./implementation/API_REFERENCE.md)
 - **Generate songs with agents** 🦜🔗 → [AGENT_SYSTEM_GUIDE.md](./implementation/AGENT_SYSTEM_GUIDE.md)
 - **Use RAG for lyrics** 🧠 → [RAG_IMPLEMENTATION.md](./implementation/RAG_IMPLEMENTATION.md)
 - **Switch LLM providers** 🔌 → [FLEXIBLE_LLM_GUIDE.md](./implementation/FLEXIBLE_LLM_GUIDE.md)
@@ -181,6 +189,7 @@ docs/
 | **Database** | [Schema & design](./architecture/DATABASE_DESIGN.md) |
 | **Deployment** | [AWS & K8s guide](./guides/DEPLOYMENT_GUIDE.md) |
 | **Roadmap** | [Work breakdown](./planning/WBS.md) |
+| **API Reference** 🌐 | [Complete API docs](./implementation/API_REFERENCE.md) |
 | **Agent System** 🦜🔗 | [Multi-agent workflow](./implementation/AGENT_SYSTEM_GUIDE.md) |
 | **RAG System** 🧠 | [RAG implementation](./implementation/RAG_IMPLEMENTATION.md) |
 | **LLM Providers** 🔌 | [Flexible LLM guide](./implementation/FLEXIBLE_LLM_GUIDE.md) |
