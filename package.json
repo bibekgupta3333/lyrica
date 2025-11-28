@@ -34,7 +34,12 @@
     "kill:mobile": "lsof -ti:8081 2>/dev/null | xargs kill -9 2>/dev/null || echo '✅ Mobile port (8081) is free'",
     "kill:all": "pnpm kill:ports && docker-compose down",
     "restart": "pnpm kill:all && pnpm docker:up && pnpm dev",
-    "restart:backend": "pnpm kill:backend && pnpm dev:backend"
+    "restart:backend": "pnpm kill:backend && pnpm dev:backend",
+    "docker:build:prod": "docker-compose -f docker-compose.prod.yml build",
+    "docker:up:prod": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:down:prod": "docker-compose -f docker-compose.prod.yml down",
+    "docker:logs:prod": "docker-compose -f docker-compose.prod.yml logs -f",
+    "docker:restart:prod": "pnpm docker:down:prod && pnpm docker:up:prod"
   },
   "devDependencies": {
     "turbo": "^1.11.3"

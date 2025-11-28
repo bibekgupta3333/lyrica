@@ -5,7 +5,17 @@ Combines all API v1 endpoints.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, feedback, health, lyrics, rag, songs, streaming, styles
+from app.api.v1.endpoints import (
+    audio,
+    auth,
+    feedback,
+    health,
+    lyrics,
+    rag,
+    songs,
+    streaming,
+    styles,
+)
 
 # Create API v1 router
 api_router = APIRouter()
@@ -35,6 +45,9 @@ api_router.include_router(styles.router, prefix="/styles", tags=["Styles & Genre
 
 # Streaming
 api_router.include_router(streaming.router, prefix="/stream", tags=["Streaming"])
+
+# Audio Processing
+api_router.include_router(audio.router, prefix="/audio", tags=["Audio Processing"])
 
 # TODO: Add more routers as they are implemented
 # api_router.include_router(

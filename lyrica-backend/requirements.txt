@@ -61,3 +61,13 @@ pre-commit==3.6.0
 mkdocs==1.5.3
 mkdocs-material==9.5.6
 
+# Audio Processing
+librosa==0.10.1
+pydub==0.25.1
+soundfile==0.12.1
+numpy==1.26.2
+scipy==1.11.4
+audioread==3.0.1
+resampy==0.4.2
+matplotlib==3.8.2
+pyloudnorm==0.1.1
