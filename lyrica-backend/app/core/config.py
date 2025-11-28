@@ -44,12 +44,40 @@ class Settings(BaseSettings):
     redis_max_connections: int = Field(default=50, description="Redis max connections")
     redis_decode_responses: bool = Field(default=True, description="Decode Redis responses")
 
+    # LLM Configuration (Multi-Provider Support)
+    llm_provider: str = Field(
+        default="ollama", description="LLM provider (ollama, openai, gemini, grok)"
+    )
+
     # Ollama Configuration
     ollama_base_url: str = Field(default="http://localhost:11434", description="Ollama base URL")
     ollama_model: str = Field(default="llama3", description="Ollama model name")
     ollama_timeout: int = Field(default=300, description="Ollama request timeout (seconds)")
     ollama_temperature: float = Field(default=0.7, description="LLM temperature")
     ollama_max_tokens: int = Field(default=2048, description="Max tokens to generate")
+
+    # OpenAI Configuration
+    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key")
+    openai_model: str = Field(default="gpt-4", description="OpenAI model name")
+    openai_temperature: float = Field(default=0.7, description="OpenAI temperature")
+    openai_max_tokens: int = Field(default=2048, description="OpenAI max tokens")
+    openai_timeout: int = Field(default=300, description="OpenAI timeout (seconds)")
+    openai_base_url: Optional[str] = Field(default=None, description="OpenAI base URL (optional)")
+
+    # Google Gemini Configuration
+    gemini_api_key: Optional[str] = Field(default=None, description="Google Gemini API key")
+    gemini_model: str = Field(default="gemini-pro", description="Gemini model name")
+    gemini_temperature: float = Field(default=0.7, description="Gemini temperature")
+    gemini_max_tokens: int = Field(default=2048, description="Gemini max tokens")
+    gemini_timeout: int = Field(default=300, description="Gemini timeout (seconds)")
+
+    # Grok (X.AI) Configuration
+    grok_api_key: Optional[str] = Field(default=None, description="Grok API key")
+    grok_model: str = Field(default="grok-beta", description="Grok model name")
+    grok_temperature: float = Field(default=0.7, description="Grok temperature")
+    grok_max_tokens: int = Field(default=2048, description="Grok max tokens")
+    grok_timeout: int = Field(default=300, description="Grok timeout (seconds)")
+    grok_base_url: str = Field(default="https://api.x.ai/v1", description="Grok base URL")
 
     # ChromaDB Configuration
     chromadb_host: str = Field(default="localhost", description="ChromaDB host")

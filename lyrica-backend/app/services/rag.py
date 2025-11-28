@@ -1,37 +1,39 @@
 """
 RAG (Retrieval-Augmented Generation) Service
-Combines vector search with LLM generation using LangGraph.
+Combines vector search with LLM generation using flexible multi-provider LLM support.
 """
 
 from typing import Any, Dict, List, Optional
 
-from langchain_community.llms import Ollama
 from loguru import logger
 
 from app.core.config import settings
+from app.services.llm import BaseLLMService, get_llm_service
 from app.services.vector_store import vector_store
 
 
 class RAGService:
     """Service for Retrieval-Augmented Generation."""
 
-    def __init__(self):
-        """Initialize RAG service."""
-        self.llm = None
+    def __init__(self, provider: Optional[str] = None):
+        """
+        Initialize RAG service.
+
+        Args:
+            provider: Optional LLM provider override (ollama, openai, gemini, grok)
+        """
+        self.llm: Optional[BaseLLMService] = None
+        self.provider_override = provider
         self.top_k = 5
         self.similarity_threshold = 0.7
-        logger.info("RAG service initialized")
+        logger.info(f"RAG service initialized (provider: {provider or settings.llm_provider})")
 
-    def _get_llm(self) -> Ollama:
+    def _get_llm(self) -> BaseLLMService:
         """Get or create LLM instance."""
         if self.llm is None:
-            logger.info(f"Initializing Ollama LLM: {settings.ollama_model}")
-            self.llm = Ollama(
-                base_url=settings.ollama_base_url,
-                model=settings.ollama_model,
-                temperature=settings.ollama_temperature,
-                timeout=settings.ollama_timeout,
-            )
+            self.llm = get_llm_service(self.provider_override)
+            model_info = self.llm.get_model_info()
+            logger.info(f"LLM service ready: {model_info['provider']} - {model_info['model']}")
         return self.llm
 
     async def retrieve(
@@ -111,9 +113,10 @@ Response:"""
 
         try:
             llm = self._get_llm()
-            response = llm.invoke(full_prompt)
-            logger.info("Response generated successfully")
-            return response
+            # Use the new flexible LLM service
+            llm_response = await llm.generate(query, system_prompt=full_prompt)
+            logger.info(f"Response generated successfully (tokens: {llm_response.tokens_used})")
+            return llm_response.content
 
         except Exception as e:
             logger.error(f"Error generating response: {e}")
