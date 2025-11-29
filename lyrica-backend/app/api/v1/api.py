@@ -15,6 +15,7 @@ from app.api.v1.endpoints import (
     production,
     rag,
     songs,
+    songs_complete,
     streaming,
     styles,
     voice,
@@ -60,6 +61,9 @@ api_router.include_router(music.router, prefix="/music", tags=["Music Generation
 
 # Song Production
 api_router.include_router(production.router, prefix="/production", tags=["Song Production"])
+
+# Complete Song Generation API (WBS 2.14)
+api_router.include_router(songs_complete.router, tags=["Complete Song Generation"])
 
 # TODO: Add more routers as they are implemented
 # api_router.include_router(
