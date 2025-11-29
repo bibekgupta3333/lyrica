@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     feedback,
     health,
     lyrics,
+    music,
     rag,
     songs,
     streaming,
@@ -52,6 +53,9 @@ api_router.include_router(audio.router, prefix="/audio", tags=["Audio Processing
 
 # Voice Synthesis
 api_router.include_router(voice.router, prefix="/voice", tags=["Voice Synthesis"])
+
+# Music Generation
+api_router.include_router(music.router, prefix="/music", tags=["Music Generation"])
 
 # TODO: Add more routers as they are implemented
 # api_router.include_router(
