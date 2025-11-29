@@ -113,7 +113,7 @@ docs/
 
 - **[API_REFERENCE.md](./implementation/API_REFERENCE.md)** 🌐
   - Complete REST API documentation
-  - 81 endpoints across 12 categories
+  - 89 endpoints across 13 categories
   - Request/response examples
   - Authentication guide
   - Quick reference for all endpoints
@@ -162,6 +162,14 @@ docs/
   - Structured composition (intro/verse/chorus)
   - Musical parameters (key, BPM, mood)
 
+- **[SONG_PRODUCTION_GUIDE.md](./implementation/SONG_PRODUCTION_GUIDE.md)** 🎼
+  - Complete song assembly (vocals + music)
+  - Multi-section song creation
+  - Lyrics-music synchronization
+  - Final mastering & loudness normalization
+  - Song variants (preview, radio edit)
+  - Multi-format export (MP3, WAV, OGG, FLAC, M4A)
+
 ## 📋 Planning & Status
 
 **Project planning and tracking:**
@@ -190,6 +198,7 @@ docs/
 - **Implement streaming** 📡 → [STREAMING_GUIDE.md](./implementation/STREAMING_GUIDE.md)
 - **Synthesize voice** 🎤 → [VOICE_SYNTHESIS_GUIDE.md](./implementation/VOICE_SYNTHESIS_GUIDE.md)
 - **Generate music** 🎹 → [MUSIC_GENERATION_GUIDE.md](./implementation/MUSIC_GENERATION_GUIDE.md)
+- **Produce complete songs** 🎼 → [SONG_PRODUCTION_GUIDE.md](./implementation/SONG_PRODUCTION_GUIDE.md)
 - **Design the UI in Figma** → [FIGMA_DESIGN_PROMPT.md](./design/FIGMA_DESIGN_PROMPT.md) 🎨
 - **Use AI assistants effectively** → [AI_ASSISTANT_SETUP.md](./guides/AI_ASSISTANT_SETUP.md) 🤖
 - **Manage databases visually** → [DATABASE_VIEWERS.md](./guides/DATABASE_VIEWERS.md) 🐘🔴
@@ -223,6 +232,7 @@ docs/
 | **Streaming** 📡 | [Real-time streaming](./implementation/STREAMING_GUIDE.md) |
 | **Voice Synthesis** 🎤 | [TTS & voice control](./implementation/VOICE_SYNTHESIS_GUIDE.md) |
 | **Music Generation** 🎹 | [AI music composition](./implementation/MUSIC_GENERATION_GUIDE.md) |
+| **Song Production** 🎼 | [Complete song assembly](./implementation/SONG_PRODUCTION_GUIDE.md) |
 
 ## 💡 Documentation Tips
 
