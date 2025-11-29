@@ -7,6 +7,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     audio,
+    audio_quality,
     auth,
     feedback,
     health,
@@ -64,6 +65,9 @@ api_router.include_router(production.router, prefix="/production", tags=["Song P
 
 # Complete Song Generation API (WBS 2.14)
 api_router.include_router(songs_complete.router, tags=["Complete Song Generation"])
+
+# Audio Quality & Optimization (WBS 2.15)
+api_router.include_router(audio_quality.router, tags=["Audio Quality & Optimization"])
 
 # TODO: Add more routers as they are implemented
 # api_router.include_router(
