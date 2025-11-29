@@ -154,20 +154,20 @@
 - [x] 2.13.9 Create song preview generation ✅
 - [x] 2.13.10 Implement song export in multiple formats ✅
 
-### 2.14 Song Generation API Endpoints 🎧
-- [ ] 2.14.1 POST /api/v1/songs/generate - Generate complete song
-- [ ] 2.14.2 POST /api/v1/voice/synthesize - Generate vocals from lyrics
-- [ ] 2.14.3 POST /api/v1/music/generate - Generate instrumental music
-- [ ] 2.14.4 POST /api/v1/songs/mix - Mix vocals and music
-- [ ] 2.14.5 GET /api/v1/songs/{id} - Retrieve song
-- [ ] 2.14.6 GET /api/v1/songs/{id}/download - Download song file
-- [ ] 2.14.7 GET /api/v1/songs/{id}/stream - Stream song
-- [ ] 2.14.8 POST /api/v1/songs/{id}/regenerate-vocals - Re-generate vocals
-- [ ] 2.14.9 POST /api/v1/songs/{id}/regenerate-music - Re-generate music
-- [ ] 2.14.10 PUT /api/v1/songs/{id}/settings - Update audio settings
-- [ ] 2.14.11 GET /api/v1/voice/profiles - List available voices
-- [ ] 2.14.12 GET /api/v1/music/genres - List available music genres
-- [ ] 2.14.13 POST /api/v1/songs/{id}/remix - Remix existing song
+### 2.14 Song Generation API Endpoints 🎧 ✅
+- [x] 2.14.1 POST /api/v1/songs/generate - Generate complete song ✅
+- [x] 2.14.2 POST /api/v1/voice/synthesize - Generate vocals from lyrics ✅ (in voice.py)
+- [x] 2.14.3 POST /api/v1/music/generate - Generate instrumental music ✅ (in music.py)
+- [x] 2.14.4 POST /api/v1/songs/mix - Mix vocals and music ✅ (in production.py)
+- [x] 2.14.5 GET /api/v1/songs/{id} - Retrieve song ✅
+- [x] 2.14.6 GET /api/v1/songs/{id}/download - Download song file ✅
+- [x] 2.14.7 GET /api/v1/songs/{id}/stream - Stream song ✅
+- [x] 2.14.8 POST /api/v1/songs/{id}/regenerate-vocals - Re-generate vocals ✅
+- [x] 2.14.9 POST /api/v1/songs/{id}/regenerate-music - Re-generate music ✅
+- [x] 2.14.10 PUT /api/v1/songs/{id}/settings - Update audio settings ✅
+- [x] 2.14.11 GET /api/v1/voice/profiles - List available voices ✅
+- [x] 2.14.12 GET /api/v1/music/genres - List available music genres ✅
+- [x] 2.14.13 POST /api/v1/songs/{id}/remix - Remix existing song ✅
 
 ### 2.15 Audio Quality & Optimization 🎚️
 - [ ] 2.15.1 Implement audio quality validation
