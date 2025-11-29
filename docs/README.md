@@ -113,7 +113,7 @@ docs/
 
 - **[API_REFERENCE.md](./implementation/API_REFERENCE.md)** 🌐
   - Complete REST API documentation
-  - 95+ endpoints across 13 categories
+  - 110+ endpoints across 14 categories
   - Request/response examples
   - Authentication guide
   - Quick reference for all endpoints
@@ -162,7 +162,7 @@ docs/
   - Structured composition (intro/verse/chorus)
   - Musical parameters (key, BPM, mood)
 
-- **[COMPLETE_SONG_API_GUIDE.md](./implementation/COMPLETE_SONG_API_GUIDE.md)** 🎵 ⭐ **NEW**
+- **[COMPLETE_SONG_API_GUIDE.md](./implementation/COMPLETE_SONG_API_GUIDE.md)** 🎵
   - Complete song generation REST API (WBS 2.14)
   - End-to-end pipeline (lyrics → vocals → music → production)
   - 15+ dedicated endpoints for song management
@@ -171,6 +171,18 @@ docs/
   - Remix and variation creation
   - Voice profiles and genre metadata
   - Full CRUD operations with database persistence
+
+- **[AUDIO_QUALITY_GUIDE.md](./implementation/AUDIO_QUALITY_GUIDE.md)** 🎚️ ⭐ **NEW**
+  - Audio Quality & Optimization system (WBS 2.15)
+  - 15 quality & enhancement endpoints
+  - Quality validation with scoring (0-100)
+  - Spectral gating noise reduction
+  - Dynamic range compression (broadcast quality)
+  - M/S stereo widening
+  - Comprehensive audio analysis (loudness, clarity, spectral, performance)
+  - Enhancement pipeline with multiple algorithms
+  - Batch processing support
+  - Integration examples (Frontend, Mobile)
 
 ## 📋 Planning & Status
 
@@ -200,7 +212,8 @@ docs/
 - **Implement streaming** 📡 → [STREAMING_GUIDE.md](./implementation/STREAMING_GUIDE.md)
 - **Synthesize voice** 🎤 → [VOICE_SYNTHESIS_GUIDE.md](./implementation/VOICE_SYNTHESIS_GUIDE.md)
 - **Generate music** 🎹 → [MUSIC_GENERATION_GUIDE.md](./implementation/MUSIC_GENERATION_GUIDE.md)
-- **Generate complete songs** 🎵 → [COMPLETE_SONG_API_GUIDE.md](./implementation/COMPLETE_SONG_API_GUIDE.md) ⭐ **NEW**
+- **Generate complete songs** 🎵 → [COMPLETE_SONG_API_GUIDE.md](./implementation/COMPLETE_SONG_API_GUIDE.md)
+- **Enhance audio quality** 🎚️ → [AUDIO_QUALITY_GUIDE.md](./implementation/AUDIO_QUALITY_GUIDE.md) ⭐ **NEW**
 - **Design the UI in Figma** → [FIGMA_DESIGN_PROMPT.md](./design/FIGMA_DESIGN_PROMPT.md) 🎨
 - **Use AI assistants effectively** → [AI_ASSISTANT_SETUP.md](./guides/AI_ASSISTANT_SETUP.md) 🤖
 - **Manage databases visually** → [DATABASE_VIEWERS.md](./guides/DATABASE_VIEWERS.md) 🐘🔴
@@ -234,7 +247,8 @@ docs/
 | **Streaming** 📡 | [Real-time streaming](./implementation/STREAMING_GUIDE.md) |
 | **Voice Synthesis** 🎤 | [TTS & voice control](./implementation/VOICE_SYNTHESIS_GUIDE.md) |
 | **Music Generation** 🎹 | [AI music composition](./implementation/MUSIC_GENERATION_GUIDE.md) |
-| **Complete Song API** 🎵 ⭐ | [End-to-end generation](./implementation/COMPLETE_SONG_API_GUIDE.md) |
+| **Complete Song API** 🎵 | [End-to-end generation](./implementation/COMPLETE_SONG_API_GUIDE.md) |
+| **Audio Quality** 🎚️ ⭐ | [Enhancement & analysis](./implementation/AUDIO_QUALITY_GUIDE.md) |
 
 ## 💡 Documentation Tips
 
