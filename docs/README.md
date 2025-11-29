@@ -113,7 +113,7 @@ docs/
 
 - **[API_REFERENCE.md](./implementation/API_REFERENCE.md)** 🌐
   - Complete REST API documentation
-  - 35 endpoints across 7 categories
+  - 81 endpoints across 12 categories
   - Request/response examples
   - Authentication guide
   - Quick reference for all endpoints
@@ -137,6 +137,30 @@ docs/
   - Document ingestion and search
   - Embedding and chunking strategies
   - API reference and examples
+
+- **[STREAMING_GUIDE.md](./implementation/STREAMING_GUIDE.md)** 📡
+  - Real-time streaming responses
+  - Server-Sent Events (SSE)
+  - WebSocket implementation
+  - Streaming best practices
+  - Frontend integration
+
+- **[VOICE_SYNTHESIS_GUIDE.md](./implementation/VOICE_SYNTHESIS_GUIDE.md)** 🎤
+  - Text-to-speech (TTS) systems
+  - Bark and Coqui TTS engines
+  - Voice profiles and customization
+  - Pitch and tempo control
+  - Vocal effects (reverb, echo, compression)
+  - Lyrics synthesis workflow
+
+- **[MUSIC_GENERATION_GUIDE.md](./implementation/MUSIC_GENERATION_GUIDE.md)** 🎹
+  - AI-powered music composition
+  - MusicGen integration
+  - 15 genre support
+  - Chord progression generation
+  - MIDI melody creation
+  - Structured composition (intro/verse/chorus)
+  - Musical parameters (key, BPM, mood)
 
 ## 📋 Planning & Status
 
@@ -163,6 +187,9 @@ docs/
 - **Generate songs with agents** 🦜🔗 → [AGENT_SYSTEM_GUIDE.md](./implementation/AGENT_SYSTEM_GUIDE.md)
 - **Use RAG for lyrics** 🧠 → [RAG_IMPLEMENTATION.md](./implementation/RAG_IMPLEMENTATION.md)
 - **Switch LLM providers** 🔌 → [FLEXIBLE_LLM_GUIDE.md](./implementation/FLEXIBLE_LLM_GUIDE.md)
+- **Implement streaming** 📡 → [STREAMING_GUIDE.md](./implementation/STREAMING_GUIDE.md)
+- **Synthesize voice** 🎤 → [VOICE_SYNTHESIS_GUIDE.md](./implementation/VOICE_SYNTHESIS_GUIDE.md)
+- **Generate music** 🎹 → [MUSIC_GENERATION_GUIDE.md](./implementation/MUSIC_GENERATION_GUIDE.md)
 - **Design the UI in Figma** → [FIGMA_DESIGN_PROMPT.md](./design/FIGMA_DESIGN_PROMPT.md) 🎨
 - **Use AI assistants effectively** → [AI_ASSISTANT_SETUP.md](./guides/AI_ASSISTANT_SETUP.md) 🤖
 - **Manage databases visually** → [DATABASE_VIEWERS.md](./guides/DATABASE_VIEWERS.md) 🐘🔴
@@ -193,6 +220,9 @@ docs/
 | **Agent System** 🦜🔗 | [Multi-agent workflow](./implementation/AGENT_SYSTEM_GUIDE.md) |
 | **RAG System** 🧠 | [RAG implementation](./implementation/RAG_IMPLEMENTATION.md) |
 | **LLM Providers** 🔌 | [Flexible LLM guide](./implementation/FLEXIBLE_LLM_GUIDE.md) |
+| **Streaming** 📡 | [Real-time streaming](./implementation/STREAMING_GUIDE.md) |
+| **Voice Synthesis** 🎤 | [TTS & voice control](./implementation/VOICE_SYNTHESIS_GUIDE.md) |
+| **Music Generation** 🎹 | [AI music composition](./implementation/MUSIC_GENERATION_GUIDE.md) |
 
 ## 💡 Documentation Tips
 
