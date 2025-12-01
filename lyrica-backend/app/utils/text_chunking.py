@@ -273,3 +273,51 @@ class TextChunker:
 
 # Global text chunker instance
 text_chunker = TextChunker()
+
+
+# Convenience functions for easy imports
+def chunk_text(
+    text: str,
+    max_chunk_size: int = 512,
+    overlap: int = 50,
+    strategy: str = "recursive",
+    metadata: Optional[dict] = None,
+) -> List[str]:
+    """
+    Convenience function to chunk text.
+
+    Args:
+        text: Text to chunk
+        max_chunk_size: Maximum chunk size in characters
+        overlap: Overlap between chunks
+        strategy: Chunking strategy
+        metadata: Optional metadata
+
+    Returns:
+        List of text chunks (strings)
+    """
+    chunker = TextChunker(chunk_size=max_chunk_size, chunk_overlap=overlap)
+
+    # Use lyrics strategy if specified
+    if strategy == "lyrics":
+        chunk_dicts = TextChunker.chunk_lyrics(text, metadata)
+    else:
+        chunk_dicts = chunker.chunk_text(text, strategy, metadata)
+
+    # Return just the text strings for backward compatibility
+    return [chunk["text"] for chunk in chunk_dicts]
+
+
+def chunk_lyrics(lyrics_text: str, metadata: Optional[dict] = None) -> List[str]:
+    """
+    Convenience function to chunk lyrics text.
+
+    Args:
+        lyrics_text: Lyrics to chunk
+        metadata: Optional metadata
+
+    Returns:
+        List of lyric chunks (strings)
+    """
+    chunk_dicts = TextChunker.chunk_lyrics(lyrics_text, metadata)
+    return [chunk["text"] for chunk in chunk_dicts]
