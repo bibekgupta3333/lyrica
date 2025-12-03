@@ -4,16 +4,17 @@ FastAPI application entry point.
 """
 
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 
-from app.core.config import settings
-from app.core.logging import setup_logging, logger
-from app.core.middleware import RequestIDMiddleware, LoggingMiddleware
-from app.api.v1.api import api_router
 from app import __version__
+from app.api.v1.api import api_router
+from app.core.config import settings
+from app.core.logging import logger, setup_logging
+from app.core.middleware import LoggingMiddleware, RequestIDMiddleware
 
 
 @asynccontextmanager
@@ -26,29 +27,71 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Lyrica Backend API")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Version: {__version__}")
-    
+
     # Initialize database connection
     from app.db.session import engine
-    logger.info("Database connection initialized")
-    
-    # TODO: Initialize other connections
-    # - Redis connection
-    # - ChromaDB client
-    # - Ollama client
-    
+
+    # Ensure database engine is initialized
+    if engine:
+        logger.info("Database connection initialized")
+
+    # Initialize Redis connection
+    try:
+        from app.core.redis import redis_client
+
+        await redis_client.connect()
+        logger.info("Redis connection initialized")
+    except Exception as e:
+        logger.warning(f"Redis initialization failed: {e}")
+
+    # Initialize ChromaDB client
+    try:
+        from app.services.vector_store import vector_store
+
+        # Access the client property to trigger lazy initialization
+        _ = vector_store.client
+        logger.info("ChromaDB client initialized")
+    except Exception as e:
+        logger.warning(f"ChromaDB initialization failed: {e}")
+
+    # Initialize Ollama client (verify connection)
+    try:
+        from app.services.llm.factory import llm_factory
+
+        # This will initialize the LLM service based on settings
+        llm_service = llm_factory.get_service()
+        logger.info(f"LLM service initialized: {llm_service.provider.value}")
+    except Exception as e:
+        logger.warning(f"LLM service initialization failed: {e}")
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Lyrica Backend API")
-    
+
     # Cleanup connections
     from app.db.session import close_db
+
     await close_db()
     logger.info("Database connections closed")
-    
-    # TODO: Cleanup other connections
-    # - Close Redis connections
-    # - Close ChromaDB connections
+
+    # Cleanup Redis connections
+    try:
+        from app.core.redis import redis_client
+
+        await redis_client.disconnect()
+        logger.info("Redis connections closed")
+    except Exception as e:
+        logger.warning(f"Redis cleanup failed: {e}")
+
+    # Cleanup ChromaDB connections
+    try:
+        from app.services.cache import cache_service
+
+        await cache_service.close()
+        logger.info("Cache service closed")
+    except Exception as e:
+        logger.warning(f"Cache service cleanup failed: {e}")
 
 
 # Initialize logging
@@ -79,10 +122,7 @@ app.add_middleware(RequestIDMiddleware)
 app.add_middleware(LoggingMiddleware)
 
 # Include API v1 router
-app.include_router(
-    api_router,
-    prefix="/api/v1"
-)
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)
@@ -112,22 +152,22 @@ async def global_exception_handler(request, exc):
             "path": request.url.path,
             "method": request.method,
             "error_type": type(exc).__name__,
-        }
+        },
     )
-    
+
     return JSONResponse(
         status_code=500,
         content={
             "error": "Internal Server Error",
             "message": str(exc) if settings.debug else "An unexpected error occurred",
             "request_id": getattr(request.state, "request_id", None),
-        }
+        },
     )
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app.main:app",
         host=settings.host,
@@ -136,4 +176,3 @@ if __name__ == "__main__":
         workers=settings.workers if not settings.reload else 1,
         log_level=settings.log_level.lower(),
     )
-

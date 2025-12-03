@@ -202,11 +202,12 @@
 **Goal**: Complete all remaining TODO items in the backend codebase
 
 #### 2.16.1 Application Lifecycle Management
-- [ ] 2.16.1.1 Initialize Redis connection on startup (main.py)
-- [ ] 2.16.1.2 Initialize ChromaDB client on startup (main.py)
-- [ ] 2.16.1.3 Initialize Ollama client on startup (main.py)
-- [ ] 2.16.1.4 Cleanup Redis connections on shutdown (main.py)
-- [ ] 2.16.1.5 Cleanup ChromaDB connections on shutdown (main.py)
+
+- [x] 2.16.1.1 Initialize Redis connection on startup (main.py) ✅
+- [x] 2.16.1.2 Initialize ChromaDB client on startup (main.py) ✅
+- [x] 2.16.1.3 Initialize Ollama client on startup (main.py) ✅
+- [x] 2.16.1.4 Cleanup Redis connections on shutdown (main.py) ✅
+- [x] 2.16.1.5 Cleanup ChromaDB connections on shutdown (main.py) ✅
 
 #### 2.16.2 Health Check Implementation
 - [ ] 2.16.2.1 Implement database health check (health.py)
