@@ -24,7 +24,7 @@ from app.models.lyrics import LyricsSection
 from app.models.user import User
 from app.schemas.lyrics import Lyrics, LyricsCreate, LyricsUpdate, LyricsWithSections
 
-router = APIRouter()
+router = APIRouter(tags=["Lyrics Management"])
 
 
 # ============================================================================

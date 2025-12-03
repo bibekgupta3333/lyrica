@@ -4,7 +4,7 @@ Endpoints for Retrieval-Augmented Generation functionality.
 """
 
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
@@ -14,59 +14,201 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.services import ingestion_service, rag_service, vector_store
 
-router = APIRouter()
+router = APIRouter(tags=["RAG (Retrieval-Augmented Generation)"])
 
 
 # Pydantic Schemas
 class IngestDocumentRequest(BaseModel):
     """Request for ingesting a document."""
 
-    document_id: uuid.UUID
+    document_id: uuid.UUID = Field(
+        ..., description="UUID of the document to ingest from the database"
+    )
     chunking_strategy: str = Field(
         default="recursive",
-        description="Chunking strategy (recursive, fixed, sentence, paragraph)",
+        description="Chunking strategy: 'recursive' (smart), 'fixed' (by size), 'sentence' (by sentences), 'paragraph' (by paragraphs)",
     )
+
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "document_id": "123e4567-e89b-12d3-a456-426614174000",
+                    "chunking_strategy": "recursive",
+                },
+                {
+                    "document_id": "123e4567-e89b-12d3-a456-426614174001",
+                    "chunking_strategy": "sentence",
+                },
+                {
+                    "document_id": "123e4567-e89b-12d3-a456-426614174002",
+                    "chunking_strategy": "paragraph",
+                },
+            ]
+        }
 
 
 class IngestLyricsRequest(BaseModel):
     """Request for ingesting lyrics."""
 
-    lyrics_id: uuid.UUID
+    lyrics_id: uuid.UUID = Field(
+        ..., description="UUID of the lyrics to ingest (preserves verse/chorus structure)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "lyrics_id": "123e4567-e89b-12d3-a456-426614174000",
+            }
+        }
 
 
 class IngestCustomTextRequest(BaseModel):
     """Request for ingesting custom text."""
 
-    text: str = Field(..., min_length=10)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    chunking_strategy: str = Field(default="recursive")
+    text: str = Field(
+        ...,
+        min_length=10,
+        description="Custom text to ingest (minimum 10 characters)",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional metadata dictionary (e.g., genre, mood, theme)",
+    )
+    chunking_strategy: str = Field(
+        default="recursive",
+        description="Chunking strategy: 'recursive', 'fixed', 'sentence', or 'paragraph'",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "text": "This is a reference song about love and summer. It has verses and a chorus about beach days and sunsets.",
+                    "metadata": {"genre": "pop", "mood": "happy", "theme": "love"},
+                    "chunking_strategy": "recursive",
+                },
+                {
+                    "text": "Pop songs typically have verse-chorus structure. Verses tell a story, choruses repeat the main theme.",
+                    "metadata": {"type": "style_guide", "genre": "pop"},
+                    "chunking_strategy": "paragraph",
+                },
+            ]
+        }
 
 
 class SearchRequest(BaseModel):
     """Request for vector search."""
 
-    query: str = Field(..., min_length=3)
-    n_results: int = Field(default=5, ge=1, le=20)
-    filters: Optional[Dict[str, Any]] = None
+    query: str = Field(..., min_length=3, description="Search query text (minimum 3 characters)")
+    n_results: int = Field(default=5, ge=1, le=20, description="Number of results to return (1-20)")
+    filters: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Optional filters (e.g., {'genre': 'pop', 'mood': 'happy'})",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "query": "songs about falling in love",
+                    "n_results": 5,
+                    "filters": None,
+                },
+                {
+                    "query": "upbeat pop music",
+                    "n_results": 10,
+                    "filters": {"genre": "pop"},
+                },
+                {
+                    "query": "sad ballad lyrics",
+                    "n_results": 5,
+                    "filters": {"mood": "sad", "genre": "ballad"},
+                },
+            ]
+        }
 
 
 class RAGQueryRequest(BaseModel):
     """Request for RAG query."""
 
-    query: str = Field(..., min_length=3)
-    n_results: int = Field(default=5, ge=1, le=20)
-    filters: Optional[Dict[str, Any]] = None
-    system_prompt: Optional[str] = None
+    query: str = Field(..., min_length=3, description="Query text for RAG (retrieval + generation)")
+    n_results: int = Field(
+        default=5, ge=1, le=20, description="Number of context documents to retrieve (1-20)"
+    )
+    filters: Optional[Dict[str, Any]] = Field(
+        None, description="Optional filters for document retrieval"
+    )
+    system_prompt: Optional[str] = Field(
+        None, description="Optional custom system prompt for LLM generation"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "query": "What are common themes in pop songs?",
+                    "n_results": 5,
+                    "filters": None,
+                    "system_prompt": None,
+                },
+                {
+                    "query": "Analyze the structure of hip-hop songs",
+                    "n_results": 10,
+                    "filters": {"genre": "hip-hop"},
+                    "system_prompt": "You are a music analyst expert.",
+                },
+            ]
+        }
 
 
 class GenerateLyricsRequest(BaseModel):
     """Request for generating lyrics with RAG."""
 
-    theme: str = Field(..., min_length=3)
-    genre: Optional[str] = None
-    mood: Optional[str] = None
-    structure: Optional[str] = None
-    n_context_docs: int = Field(default=3, ge=1, le=10)
+    theme: str = Field(
+        ..., min_length=3, description="Theme for the lyrics (e.g., 'summer love', 'freedom')"
+    )
+    genre: Optional[str] = Field(None, description="Music genre (e.g., 'pop', 'rock', 'hip-hop')")
+    mood: Optional[str] = Field(
+        None, description="Mood/emotion (e.g., 'happy', 'sad', 'energetic')"
+    )
+    structure: Optional[str] = Field(
+        None,
+        description="Song structure (e.g., 'verse-chorus-verse-chorus-bridge-chorus')",
+    )
+    n_context_docs: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Number of similar lyrics to use as context (1-10)",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "theme": "summer love",
+                    "genre": "pop",
+                    "mood": "happy",
+                    "structure": "verse-chorus-verse-chorus-bridge-chorus",
+                    "n_context_docs": 3,
+                },
+                {
+                    "theme": "freedom and rebellion",
+                    "genre": "rock",
+                    "mood": "energetic",
+                    "structure": "verse-chorus-verse-chorus-solo-chorus",
+                    "n_context_docs": 5,
+                },
+                {
+                    "theme": "lost love",
+                    "genre": "ballad",
+                    "mood": "melancholic",
+                    "structure": None,
+                    "n_context_docs": 4,
+                },
+            ]
+        }
 
 
 class VectorStoreStats(BaseModel):
@@ -80,6 +222,8 @@ class VectorStoreStats(BaseModel):
 @router.post(
     "/ingest/document",
     status_code=status.HTTP_201_CREATED,
+    summary="Ingest document",
+    description="Ingest a document from the database into the vector store for semantic search",
     openapi_extra={
         "requestBody": {
             "content": {
@@ -147,6 +291,8 @@ async def ingest_document(
 @router.post(
     "/ingest/lyrics",
     status_code=status.HTTP_201_CREATED,
+    summary="Ingest lyrics",
+    description="Ingest lyrics into the vector store with specialized chunking (preserves verse/chorus structure)",
     openapi_extra={
         "requestBody": {
             "content": {
@@ -195,6 +341,8 @@ async def ingest_lyrics(
 @router.post(
     "/ingest/custom",
     status_code=status.HTTP_201_CREATED,
+    summary="Ingest custom text",
+    description="Ingest custom text directly into the vector store (useful for reference material)",
     openapi_extra={
         "requestBody": {
             "content": {
@@ -260,6 +408,8 @@ async def ingest_custom_text(
 
 @router.post(
     "/search",
+    summary="Semantic search",
+    description="Perform semantic search on the vector store to find similar documents",
     openapi_extra={
         "requestBody": {
             "content": {
@@ -330,6 +480,8 @@ async def search_vectors(
 
 @router.post(
     "/query",
+    summary="RAG query",
+    description="Perform a RAG query: retrieve relevant documents and generate response using LLM",
     openapi_extra={
         "requestBody": {
             "content": {
@@ -396,6 +548,8 @@ async def rag_query(
 
 @router.post(
     "/generate/lyrics",
+    summary="Generate lyrics with RAG",
+    description="Generate lyrics using RAG with similar lyrics as context for inspiration",
     openapi_extra={
         "requestBody": {
             "content": {
@@ -475,7 +629,11 @@ async def generate_lyrics_with_rag(
         )
 
 
-@router.get("/stats")
+@router.get(
+    "/stats",
+    summary="Get vector store statistics",
+    description="Get statistics about the vector store (total documents, collection name)",
+)
 async def get_vector_store_stats() -> VectorStoreStats:
     """
     Get statistics about the vector store.
@@ -495,7 +653,11 @@ async def get_vector_store_stats() -> VectorStoreStats:
         )
 
 
-@router.delete("/reset")
+@router.delete(
+    "/reset",
+    summary="Reset vector store",
+    description="Reset the vector store (delete all documents). ⚠️ WARNING: This action is irreversible!",
+)
 async def reset_vector_store() -> Dict[str, str]:
     """
     Reset the vector store (delete all documents).
