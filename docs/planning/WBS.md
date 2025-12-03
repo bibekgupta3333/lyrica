@@ -217,10 +217,10 @@
 - [x] 2.16.2.4 Implement Ollama health check (health.py) ✅
 - [x] 2.16.2.5 Add proper error handling and status codes (health.py) ✅
 
-#### 2.16.3 Lyrics Agent Integration
-- [ ] 2.16.3.1 Integrate agent workflow in generate_lyrics endpoint (lyrics.py)
-- [ ] 2.16.3.2 Add sections relationship loading (lyrics.py)
-- [ ] 2.16.3.3 Integrate agent workflow in regenerate_section endpoint (lyrics.py)
+#### 2.16.3 Lyrics Agent Integration ✅
+- [x] 2.16.3.1 Integrate agent workflow in generate_lyrics endpoint (lyrics.py) ✅
+- [x] 2.16.3.2 Add sections relationship loading (lyrics.py) ✅
+- [x] 2.16.3.3 Integrate agent workflow in regenerate_section endpoint (lyrics.py) ✅
 
 #### 2.16.4 Songs Configuration & Auth
 - [ ] 2.16.4.1 Make quality_threshold configurable via settings (songs.py)
