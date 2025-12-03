@@ -31,6 +31,71 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Generate new lyrics",
     description="Generate song lyrics using the agent workflow and save to database",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_love_song": {
+                            "summary": "Pop Love Song",
+                            "value": {
+                                "title": "Summer Dreams",
+                                "content": "[Verse 1]\nWalking down the beach at sunset\nYour hand in mine feels so right\n[Chorus]\nSummer dreams and ocean breeze\nWith you is where I want to be",
+                                "structure": {
+                                    "sections": [
+                                        {"type": "verse", "count": 2},
+                                        {"type": "chorus", "count": 2},
+                                        {"type": "bridge", "count": 1},
+                                    ]
+                                },
+                                "genre": "pop",
+                                "mood": "happy",
+                                "theme": "love",
+                                "language": "en",
+                                "prompt": "Write a happy pop song about summer love",
+                                "generation_params": {"temperature": 0.8, "max_length": 500},
+                            },
+                        },
+                        "hip_hop_motivational": {
+                            "summary": "Hip-Hop Motivational",
+                            "value": {
+                                "title": "Rise Above",
+                                "content": "[Verse 1]\nStarted from the bottom now I'm here\nEvery obstacle made my vision clear\n[Chorus]\nRise above, never give up\nKeep pushing till you fill your cup",
+                                "structure": {
+                                    "sections": [
+                                        {"type": "verse", "count": 3},
+                                        {"type": "chorus", "count": 2},
+                                    ]
+                                },
+                                "genre": "hip-hop",
+                                "mood": "energetic",
+                                "theme": "motivation",
+                                "language": "en",
+                            },
+                        },
+                        "ballad_heartbreak": {
+                            "summary": "Ballad Heartbreak",
+                            "value": {
+                                "title": "Memories Fade",
+                                "content": "[Verse 1]\nPictures on the wall remind me\nOf the love we used to know\n[Chorus]\nMemories fade like autumn leaves\nBut my heart still believes",
+                                "structure": {
+                                    "sections": [
+                                        {"type": "verse", "count": 2},
+                                        {"type": "chorus", "count": 3},
+                                        {"type": "bridge", "count": 1},
+                                    ]
+                                },
+                                "genre": "ballad",
+                                "mood": "melancholic",
+                                "theme": "heartbreak",
+                                "language": "en",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def generate_lyrics(
     lyrics_in: LyricsCreate,
@@ -160,6 +225,31 @@ async def list_lyrics(
     response_model=Lyrics,
     summary="Update lyrics",
     description="Update lyrics metadata or content",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "update_title": {
+                            "summary": "Update Title Only",
+                            "value": {"title": "My Awesome Song (Remix)"},
+                        },
+                        "update_content": {
+                            "summary": "Update Content",
+                            "value": {
+                                "content": "[Verse 1]\nUpdated first verse\nWith new amazing lyrics\n[Chorus]\nThis is the updated chorus"
+                            },
+                        },
+                        "publish_lyrics": {
+                            "summary": "Publish Lyrics",
+                            "value": {"status": "published", "is_public": True},
+                        },
+                        "make_private": {"summary": "Make Private", "value": {"is_public": False}},
+                    }
+                }
+            }
+        }
+    },
 )
 async def update_lyrics(
     lyrics_id: UUID,
@@ -245,7 +335,7 @@ async def delete_lyrics(
 
     try:
         # Delete lyrics (cascade will handle sections)
-        await crud_lyrics.remove(db=db, id=lyrics_id)
+        await crud_lyrics.delete(db=db, id=lyrics_id)
 
         await db.commit()
 

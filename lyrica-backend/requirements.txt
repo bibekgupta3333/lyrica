@@ -73,13 +73,26 @@ resampy>=0.4.2
 matplotlib>=3.8.0
 pyloudnorm==0.1.1
 
-# Voice Synthesis & TTS (Optional - comment out if not needed)
-# TTS packages are often complex to install - uncomment only if needed
-# TTS>=0.22.0  # May require system dependencies
-# bark>=0.1.5  # Latest available version
-# phonemizer==3.2.1
-# tortoise-tts>=3.0.0  # Only 3.0.0+ available
-# silero-vad>=5.0.0  # Only 5.0.0+ available
+# Voice Synthesis & TTS (Python 3.12 compatible alternatives)
+# Note: Coqui TTS only supports Python <=3.11
+# Using alternative TTS solutions for Python 3.12:
+edge-tts>=6.1.0  # Microsoft Edge TTS (cloud-based, no ML dependencies)
+pyttsx3>=2.90  # Offline TTS engine wrapper
+gTTS>=2.5.0  # Google Text-to-Speech
+# For advanced features, consider:
+# - Using Docker with Python 3.11 for Coqui TTS
+# - Installing bark-tts from source with Python 3.12 patches
+# - Using external TTS APIs (ElevenLabs, Azure, AWS Polly)
+
+# Voice Activity Detection (Python 3.12 compatible)
+# silero-vad requires torch which is compatible with 3.12
+torch>=2.2.0
+torchaudio>=2.2.0
+# Note: Install silero-vad after torch is installed
+# pip install git+https://github.com/snakers4/silero-vad.git
+
+# Phonemizer (requires espeak-ng system package)
+# phonemizer>=3.3.0  # May have issues on Python 3.12, install separately if needed
 
 # Music Generation (Python 3.12 compatible)
 # audiocraft>=1.3.0  # Requires FFmpeg system libraries

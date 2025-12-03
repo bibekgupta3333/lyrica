@@ -35,10 +35,12 @@ class VoiceStyle(str, Enum):
 class TTSEngine(str, Enum):
     """Available TTS engines."""
 
-    BARK = "bark"  # Suno AI's Bark (best quality, slower)
-    COQUI = "coqui"  # Coqui TTS (fast, good quality)
-    TORTOISE = "tortoise"  # Tortoise TTS (high quality, very slow)
-    EDGE = "edge"  # Edge TTS (fast, cloud-based)
+    BARK = "bark"  # Suno AI's Bark (best quality, slower) - Requires Python <=3.11
+    COQUI = "coqui"  # Coqui TTS (fast, good quality) - Requires Python <=3.11
+    TORTOISE = "tortoise"  # Tortoise TTS (high quality, very slow) - Requires Python <=3.11
+    EDGE = "edge"  # Edge TTS (fast, cloud-based) - Python 3.12 compatible
+    GTTS = "gtts"  # Google TTS (cloud-based, simple) - Python 3.12 compatible
+    PYTTSX3 = "pyttsx3"  # Offline TTS (system voices) - Python 3.12 compatible
 
 
 class VoiceProfile(BaseModel):
@@ -63,7 +65,7 @@ class VoiceConfig(BaseModel):
     generated_voices_path: Path = Field(default=Path("audio_files/voices"))
 
     # TTS Settings
-    default_engine: TTSEngine = Field(default=TTSEngine.BARK)
+    default_engine: TTSEngine = Field(default=TTSEngine.EDGE)  # Changed to Edge for Python 3.12
     default_sample_rate: int = Field(default=24000)  # Hz
     default_temperature: float = Field(default=0.7)  # Creativity
     default_speed: float = Field(default=1.0)  # Playback speed
@@ -101,8 +103,8 @@ VOICE_PROFILES = [
         accent="american",
         age_range="adult",
         description="Deep, clear male voice suitable for storytelling",
-        engine=TTSEngine.BARK,
-        engine_voice_id="v2/en_speaker_6",
+        engine=TTSEngine.EDGE,  # Changed to Edge for Python 3.12 compatibility
+        engine_voice_id="en-US-GuyNeural",
     ),
     VoiceProfile(
         id="female_singer_1",
@@ -112,8 +114,8 @@ VOICE_PROFILES = [
         accent="american",
         age_range="young",
         description="Clear, melodic female voice perfect for singing",
-        engine=TTSEngine.BARK,
-        engine_voice_id="v2/en_speaker_9",
+        engine=TTSEngine.EDGE,  # Changed to Edge for Python 3.12 compatibility
+        engine_voice_id="en-US-JennyNeural",
     ),
     VoiceProfile(
         id="male_singer_1",
@@ -123,8 +125,8 @@ VOICE_PROFILES = [
         accent="american",
         age_range="adult",
         description="Rich male voice with good range for singing",
-        engine=TTSEngine.BARK,
-        engine_voice_id="v2/en_speaker_3",
+        engine=TTSEngine.EDGE,  # Changed to Edge for Python 3.12 compatibility
+        engine_voice_id="en-US-ChristopherNeural",
     ),
     VoiceProfile(
         id="neutral_soft",
@@ -134,8 +136,8 @@ VOICE_PROFILES = [
         accent="neutral",
         age_range="adult",
         description="Gentle, soothing voice",
-        engine=TTSEngine.BARK,
-        engine_voice_id="v2/en_speaker_1",
+        engine=TTSEngine.EDGE,  # Changed to Edge for Python 3.12 compatibility
+        engine_voice_id="en-US-AriaNeural",
     ),
 ]
 

@@ -250,7 +250,7 @@ async def adjust_pitch(file: UploadFile = File(...), semitones: float = Form(...
     # Save uploaded file
     temp_dir = Path("audio_files/temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
-    input_path = temp_dir / file.filename
+    input_path = temp_dir / (file.filename or "uploaded_audio.wav")
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
@@ -296,7 +296,7 @@ async def adjust_tempo(file: UploadFile = File(...), tempo_factor: float = Form(
     # Save uploaded file
     temp_dir = Path("audio_files/temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
-    input_path = temp_dir / file.filename
+    input_path = temp_dir / (file.filename or "uploaded_audio.wav")
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
@@ -357,7 +357,8 @@ async def apply_effects(file: UploadFile = File(...), effects: str = Form(...)):
     # Save uploaded file
     temp_dir = Path("audio_files/temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
-    input_path = temp_dir / file.filename
+    filename = file.filename or "audio.wav"
+    input_path = temp_dir / filename
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
@@ -420,6 +421,66 @@ async def apply_effects(file: UploadFile = File(...), effects: str = Form(...)):
         input_path.unlink(missing_ok=True)
 
 
+@router.post("/voice-activity-detection")
+async def detect_voice_activity(
+    file: UploadFile = File(...),
+    threshold: float = Form(default=0.5, ge=0.0, le=1.0),
+):
+    """
+    Detect voice activity in uploaded audio file using Silero VAD.
+
+    Args:
+        file: Audio file to analyze
+        threshold: Voice activity detection threshold (0-1)
+
+    Returns:
+        List of voice activity segments with start and end times in seconds
+
+    Example response:
+        ```json
+        {
+            "segments": [
+                {"start": 0.5, "end": 2.3},
+                {"start": 3.1, "end": 5.7}
+            ],
+            "total_speech_duration": 4.4,
+            "total_segments": 2
+        }
+        ```
+    """
+    synthesis_service = get_voice_synthesis()
+
+    # Save uploaded file
+    temp_dir = Path("audio_files/temp")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    filename = file.filename or "audio.wav"
+    input_path = temp_dir / filename
+    with open(input_path, "wb") as f:
+        f.write(await file.read())
+
+    try:
+        # Detect voice activity
+        segments = synthesis_service.detect_voice_activity(input_path, threshold)
+
+        # Calculate total speech duration
+        total_duration = sum(end - start for start, end in segments)
+
+        return {
+            "segments": [{"start": start, "end": end} for start, end in segments],
+            "total_speech_duration": round(total_duration, 2),
+            "total_segments": len(segments),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Voice activity detection failed: {str(e)}",
+        )
+    finally:
+        # Cleanup
+        input_path.unlink(missing_ok=True)
+
+
 @router.get("/health")
 async def voice_health():
     """Voice synthesis service health check."""
@@ -427,4 +488,5 @@ async def voice_health():
         "status": "healthy",
         "service": "voice_synthesis",
         "available_profiles": len(list_voice_profiles()),
+        "supported_engines": [e.value for e in TTSEngine],
     }

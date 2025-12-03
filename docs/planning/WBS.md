@@ -197,6 +197,125 @@
 - [x] 2.15.7 Implement background music separation ✅ (spectral analysis)
 - [x] 2.15.8 Create audio performance metrics ✅
 
+### 2.16 Backend TODO Completion 🔧 ⏳
+
+**Goal**: Complete all remaining TODO items in the backend codebase
+
+#### 2.16.1 Application Lifecycle Management
+- [ ] 2.16.1.1 Initialize Redis connection on startup (main.py)
+- [ ] 2.16.1.2 Initialize ChromaDB client on startup (main.py)
+- [ ] 2.16.1.3 Initialize Ollama client on startup (main.py)
+- [ ] 2.16.1.4 Cleanup Redis connections on shutdown (main.py)
+- [ ] 2.16.1.5 Cleanup ChromaDB connections on shutdown (main.py)
+
+#### 2.16.2 Health Check Implementation
+- [ ] 2.16.2.1 Implement database health check (health.py)
+- [ ] 2.16.2.2 Implement Redis health check (health.py)
+- [ ] 2.16.2.3 Implement ChromaDB health check (health.py)
+- [ ] 2.16.2.4 Implement Ollama health check (health.py)
+- [ ] 2.16.2.5 Add proper error handling and status codes (health.py)
+
+#### 2.16.3 Lyrics Agent Integration
+- [ ] 2.16.3.1 Integrate agent workflow in generate_lyrics endpoint (lyrics.py)
+- [ ] 2.16.3.2 Add sections relationship loading (lyrics.py)
+- [ ] 2.16.3.3 Integrate agent workflow in regenerate_section endpoint (lyrics.py)
+
+#### 2.16.4 Songs Configuration & Auth
+- [ ] 2.16.4.1 Make quality_threshold configurable via settings (songs.py)
+- [ ] 2.16.4.2 Replace hardcoded user_id with auth context (songs.py)
+
+#### 2.16.5 Feedback Authorization
+- [ ] 2.16.5.1 Implement admin role check dependency (feedback.py)
+- [ ] 2.16.5.2 Add ownership/permission check for feedback deletion (feedback.py)
+
+#### 2.16.6 Rate Limiting Implementation
+- [ ] 2.16.6.1 Create Redis client module (app/core/redis.py)
+- [ ] 2.16.6.2 Implement Redis-based rate limiter (middleware.py)
+- [ ] 2.16.6.3 Add rate limit configuration to settings
+- [ ] 2.16.6.4 Add 429 response with Retry-After header (middleware.py)
+
+**Status**: Not Started (0%)  
+**Priority**: High - Required for production readiness  
+**Estimated Effort**: 2-3 days
+
+---
+
+### 2.17 Comprehensive Endpoint Testing 🧪 ⏳
+
+**Goal**: Create comprehensive integration tests for all API endpoints with example request bodies for Swagger documentation
+
+#### 2.17.1 Songs Endpoint Testing
+- [ ] 2.17.1.1 Test POST /api/v1/songs/generate with example requests
+- [ ] 2.17.1.2 Test GET /api/v1/songs/{id}
+- [ ] 2.17.1.3 Test GET /api/v1/songs/{id}/download
+- [ ] 2.17.1.4 Test GET /api/v1/songs/{id}/stream
+- [ ] 2.17.1.5 Test POST /api/v1/songs/{id}/regenerate-vocals
+- [ ] 2.17.1.6 Test POST /api/v1/songs/{id}/regenerate-music
+- [ ] 2.17.1.7 Test PUT /api/v1/songs/{id}/settings
+- [ ] 2.17.1.8 Test POST /api/v1/songs/{id}/remix
+
+#### 2.17.2 Voice Endpoint Testing
+- [ ] 2.17.2.1 Test POST /api/v1/voice/synthesize with example requests
+- [ ] 2.17.2.2 Test GET /api/v1/voice/profiles
+- [ ] 2.17.2.3 Test different voice profiles and settings
+- [ ] 2.17.2.4 Test pitch and tempo adjustments
+
+#### 2.17.3 Music Endpoint Testing
+- [ ] 2.17.3.1 Test POST /api/v1/music/generate with example requests
+- [ ] 2.17.3.2 Test GET /api/v1/music/genres
+- [ ] 2.17.3.3 Test different genres and musical parameters
+- [ ] 2.17.3.4 Test chord progressions and melodies
+
+#### 2.17.4 Production Endpoint Testing
+- [ ] 2.17.4.1 Test POST /api/v1/production/mix with example requests
+- [ ] 2.17.4.2 Test audio quality optimization
+- [ ] 2.17.4.3 Test mastering pipeline
+- [ ] 2.17.4.4 Test export formats
+
+#### 2.17.5 Audio Endpoint Testing
+- [ ] 2.17.5.1 Test audio format conversion endpoints
+- [ ] 2.17.5.2 Test audio quality analysis endpoints
+- [ ] 2.17.5.3 Test waveform generation endpoints
+- [ ] 2.17.5.4 Test audio streaming endpoints
+
+#### 2.17.6 RAG Endpoint Testing (Enhanced)
+- [ ] 2.17.6.1 Test semantic search with various queries
+- [ ] 2.17.6.2 Test document ingestion
+- [ ] 2.17.6.3 Test filtering by genre/mood
+- [ ] 2.17.6.4 Test retrieval quality metrics
+
+#### 2.17.7 Lyrics Endpoint Testing (Enhanced)
+- [ ] 2.17.7.1 Test lyrics generation with agent workflow
+- [ ] 2.17.7.2 Test section regeneration with different parameters
+- [ ] 2.17.7.3 Test error handling for invalid inputs
+- [ ] 2.17.7.4 Test pagination and filtering
+
+#### 2.17.8 Complete Flow Testing
+- [ ] 2.17.8.1 Create end-to-end test: lyrics → vocals → music → final song
+- [ ] 2.17.8.2 Test complete user journey with realistic data
+- [ ] 2.17.8.3 Verify audio quality at each step
+- [ ] 2.17.8.4 Document flow for Swagger UI demonstration
+
+#### 2.17.9 OpenAPI Schema Enhancement
+- [ ] 2.17.9.1 Add comprehensive example fields to all Pydantic models
+- [ ] 2.17.9.2 Add detailed descriptions for all fields
+- [ ] 2.17.9.3 Create example request/response objects for Swagger UI
+- [ ] 2.17.9.4 Ensure all endpoints have proper tags and summaries
+- [ ] 2.17.9.5 Add realistic example data for complete flow demonstration
+
+**Status**: Not Started (0%)  
+**Priority**: High - Required for documentation and validation  
+**Estimated Effort**: 3-4 days  
+**Test Files to Create**:
+- `tests/integration/test_songs_endpoints.py` (new)
+- `tests/integration/test_voice_endpoints.py` (new)
+- `tests/integration/test_music_endpoints.py` (new)
+- `tests/integration/test_production_endpoints.py` (new)
+- `tests/integration/test_audio_endpoints.py` (new)
+- `tests/integration/test_complete_flow.py` (new)
+- `tests/integration/test_lyrics_endpoints.py` (enhance existing)
+- `tests/integration/test_rag_endpoints.py` (enhance existing)
+
 ---
 
 ## 3. Frontend Development - Web (Weeks 4-7)

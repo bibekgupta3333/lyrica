@@ -21,8 +21,9 @@ from app.db.session import get_db
 from app.main import app
 from app.models.user import User
 
-# Test database URL (in-memory SQLite)
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Test database URL (PostgreSQL test database)
+# Uses a separate test database to avoid affecting development data
+TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/lyrica_test"
 
 
 # ============================================================================
@@ -50,9 +51,8 @@ async def db_engine():
 
     engine = create_async_engine(
         TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
         echo=False,
+        poolclass=StaticPool,
     )
 
     async with engine.begin() as conn:
@@ -74,6 +74,7 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
         await session.rollback()
+        await session.close()
 
 
 @pytest_asyncio.fixture(scope="function")
