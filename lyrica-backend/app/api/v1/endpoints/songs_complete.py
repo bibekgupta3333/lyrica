@@ -501,6 +501,22 @@ async def generate_quick_song(
     response_model=SongResponse,
     summary="Retrieve song by ID",
     description="Get complete song information including metadata and file paths (WBS 2.14.5)",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            }
+        ]
+    },
 )
 async def get_song(
     song_id: uuid.UUID,
@@ -587,6 +603,42 @@ async def get_song(
     summary="Download song file",
     description="Download the final song audio file (WBS 2.14.6)",
     response_class=FileResponse,
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            },
+            {
+                "name": "format",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "wav"},
+                "examples": {
+                    "wav_format": {
+                        "summary": "WAV Format (Default)",
+                        "value": "wav",
+                    },
+                    "mp3_format": {
+                        "summary": "MP3 Format",
+                        "value": "mp3",
+                    },
+                    "ogg_format": {
+                        "summary": "OGG Format",
+                        "value": "ogg",
+                    },
+                },
+            },
+        ]
+    },
 )
 async def download_song(
     song_id: uuid.UUID,
@@ -653,6 +705,22 @@ async def download_song(
     "/{song_id}/stream",
     summary="Stream song audio",
     description="Stream song audio file (WBS 2.14.7)",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            }
+        ]
+    },
 )
 async def stream_song(
     song_id: uuid.UUID,
@@ -1225,6 +1293,53 @@ async def remix_song(
     response_model=SongListResponse,
     summary="List user songs",
     description="Get list of user's songs with pagination",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "skip",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 0, "minimum": 0},
+                "examples": {
+                    "first_page": {"summary": "First Page", "value": 0},
+                    "second_page": {"summary": "Second Page", "value": 20},
+                },
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100},
+                "examples": {
+                    "small": {"summary": "Small Page", "value": 10},
+                    "default": {"summary": "Default", "value": 20},
+                    "large": {"summary": "Large Page", "value": 50},
+                },
+            },
+            {
+                "name": "status",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "examples": {
+                    "completed": {"summary": "Completed Songs", "value": "completed"},
+                    "processing": {"summary": "Processing Songs", "value": "processing"},
+                    "failed": {"summary": "Failed Songs", "value": "failed"},
+                },
+            },
+            {
+                "name": "genre",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "examples": {
+                    "pop": {"summary": "Pop Genre", "value": "pop"},
+                    "rock": {"summary": "Rock Genre", "value": "rock"},
+                    "hip-hop": {"summary": "Hip-Hop Genre", "value": "hip-hop"},
+                },
+            },
+        ]
+    },
 )
 async def list_user_songs(
     skip: int = Query(default=0, ge=0),
@@ -1294,6 +1409,21 @@ async def list_user_songs(
     "/public/trending",
     response_model=List[SongResponse],
     summary="Get trending public songs",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 10, "minimum": 1, "maximum": 50},
+                "examples": {
+                    "top_10": {"summary": "Top 10", "value": 10},
+                    "top_20": {"summary": "Top 20", "value": 20},
+                    "top_50": {"summary": "Top 50", "value": 50},
+                },
+            }
+        ]
+    },
 )
 async def get_trending_songs(
     limit: int = Query(default=10, ge=1, le=50),
@@ -1416,6 +1546,22 @@ async def list_genres():
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete song",
     description="Delete a song and all its associated files",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            }
+        ]
+    },
 )
 async def delete_song(
     song_id: uuid.UUID,
