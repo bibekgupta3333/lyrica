@@ -14,7 +14,7 @@ from app import __version__
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging import logger, setup_logging
-from app.core.middleware import LoggingMiddleware, RequestIDMiddleware
+from app.core.middleware import LoggingMiddleware, RateLimitMiddleware, RequestIDMiddleware
 
 
 @asynccontextmanager
@@ -120,6 +120,18 @@ app.add_middleware(
 # Add custom middleware
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(LoggingMiddleware)
+
+# Add rate limiting middleware if enabled
+if settings.rate_limit_enabled:
+    app.add_middleware(
+        RateLimitMiddleware,
+        calls=settings.rate_limit_per_minute,
+        period=settings.rate_limit_window_seconds,
+    )
+    logger.info(
+        f"Rate limiting enabled: {settings.rate_limit_per_minute} requests per "
+        f"{settings.rate_limit_window_seconds} seconds"
+    )
 
 # Include API v1 router
 app.include_router(api_router, prefix="/api/v1")

@@ -218,23 +218,27 @@
 - [x] 2.16.2.5 Add proper error handling and status codes (health.py) ✅
 
 #### 2.16.3 Lyrics Agent Integration ✅
+
 - [x] 2.16.3.1 Integrate agent workflow in generate_lyrics endpoint (lyrics.py) ✅
 - [x] 2.16.3.2 Add sections relationship loading (lyrics.py) ✅
 - [x] 2.16.3.3 Integrate agent workflow in regenerate_section endpoint (lyrics.py) ✅
 
 #### 2.16.4 Songs Configuration & Auth ✅
+
 - [x] 2.16.4.1 Make quality_threshold configurable via settings (songs.py) ✅
 - [x] 2.16.4.2 Replace hardcoded user_id with auth context (songs.py) ✅
 
 #### 2.16.5 Feedback Authorization
+
 - [x] 2.16.5.1 Implement admin role check dependency (feedback.py)
 - [x] 2.16.5.2 Add ownership/permission check for feedback deletion (feedback.py)
 
 #### 2.16.6 Rate Limiting Implementation
-- [ ] 2.16.6.1 Create Redis client module (app/core/redis.py)
-- [ ] 2.16.6.2 Implement Redis-based rate limiter (middleware.py)
-- [ ] 2.16.6.3 Add rate limit configuration to settings
-- [ ] 2.16.6.4 Add 429 response with Retry-After header (middleware.py)
+
+- [x] 2.16.6.1 Create Redis client module (app/core/redis.py)
+- [x] 2.16.6.2 Implement Redis-based rate limiter (middleware.py)
+- [x] 2.16.6.3 Add rate limit configuration to settings
+- [x] 2.16.6.4 Add 429 response with Retry-After header (middleware.py)
 
 **Status**: Not Started (0%)  
 **Priority**: High - Required for production readiness  
@@ -247,6 +251,7 @@
 **Goal**: Create comprehensive integration tests for all API endpoints with example request bodies for Swagger documentation
 
 #### 2.17.1 Songs Endpoint Testing
+
 - [ ] 2.17.1.1 Test POST /api/v1/songs/generate with example requests
 - [ ] 2.17.1.2 Test GET /api/v1/songs/{id}
 - [ ] 2.17.1.3 Test GET /api/v1/songs/{id}/download
@@ -257,48 +262,56 @@
 - [ ] 2.17.1.8 Test POST /api/v1/songs/{id}/remix
 
 #### 2.17.2 Voice Endpoint Testing
+
 - [ ] 2.17.2.1 Test POST /api/v1/voice/synthesize with example requests
 - [ ] 2.17.2.2 Test GET /api/v1/voice/profiles
 - [ ] 2.17.2.3 Test different voice profiles and settings
 - [ ] 2.17.2.4 Test pitch and tempo adjustments
 
 #### 2.17.3 Music Endpoint Testing
+
 - [ ] 2.17.3.1 Test POST /api/v1/music/generate with example requests
 - [ ] 2.17.3.2 Test GET /api/v1/music/genres
 - [ ] 2.17.3.3 Test different genres and musical parameters
 - [ ] 2.17.3.4 Test chord progressions and melodies
 
 #### 2.17.4 Production Endpoint Testing
+
 - [ ] 2.17.4.1 Test POST /api/v1/production/mix with example requests
 - [ ] 2.17.4.2 Test audio quality optimization
 - [ ] 2.17.4.3 Test mastering pipeline
 - [ ] 2.17.4.4 Test export formats
 
 #### 2.17.5 Audio Endpoint Testing
+
 - [ ] 2.17.5.1 Test audio format conversion endpoints
 - [ ] 2.17.5.2 Test audio quality analysis endpoints
 - [ ] 2.17.5.3 Test waveform generation endpoints
 - [ ] 2.17.5.4 Test audio streaming endpoints
 
 #### 2.17.6 RAG Endpoint Testing (Enhanced)
+
 - [ ] 2.17.6.1 Test semantic search with various queries
 - [ ] 2.17.6.2 Test document ingestion
 - [ ] 2.17.6.3 Test filtering by genre/mood
 - [ ] 2.17.6.4 Test retrieval quality metrics
 
 #### 2.17.7 Lyrics Endpoint Testing (Enhanced)
+
 - [ ] 2.17.7.1 Test lyrics generation with agent workflow
 - [ ] 2.17.7.2 Test section regeneration with different parameters
 - [ ] 2.17.7.3 Test error handling for invalid inputs
 - [ ] 2.17.7.4 Test pagination and filtering
 
 #### 2.17.8 Complete Flow Testing
+
 - [ ] 2.17.8.1 Create end-to-end test: lyrics → vocals → music → final song
 - [ ] 2.17.8.2 Test complete user journey with realistic data
 - [ ] 2.17.8.3 Verify audio quality at each step
 - [ ] 2.17.8.4 Document flow for Swagger UI demonstration
 
 #### 2.17.9 OpenAPI Schema Enhancement
+
 - [ ] 2.17.9.1 Add comprehensive example fields to all Pydantic models
 - [ ] 2.17.9.2 Add detailed descriptions for all fields
 - [ ] 2.17.9.3 Create example request/response objects for Swagger UI
@@ -309,6 +322,7 @@
 **Priority**: High - Required for documentation and validation  
 **Estimated Effort**: 3-4 days  
 **Test Files to Create**:
+
 - `tests/integration/test_songs_endpoints.py` (new)
 - `tests/integration/test_voice_endpoints.py` (new)
 - `tests/integration/test_music_endpoints.py` (new)
@@ -607,6 +621,7 @@
 **Goal**: Create single standard script for all data preparation and ingestion
 
 #### 6.2.1 Core Script Implementation
+
 - [x] 6.2.1.1 Create `scripts/ingest_data.py` entry point ✅
 - [x] 6.2.1.2 Implement command-line argument parser ✅
 - [x] 6.2.1.3 Add environment detection (local/staging/production) ✅
@@ -617,6 +632,7 @@
 - [x] 6.2.1.8 Make operations idempotent ✅
 
 #### 6.2.2 Configuration System
+
 - [x] 6.2.2.1 Create `config/ingestion_config.yaml` ✅
 - [x] 6.2.2.2 Define environment-specific settings ✅
 - [x] 6.2.2.3 Add dataset source configuration ✅
@@ -625,6 +641,7 @@
 - [x] 6.2.2.6 Add validation rules ✅
 
 #### 6.2.3 Pipeline Orchestration
+
 - [x] 6.2.3.1 Implement Step 1: Environment check ✅
 - [x] 6.2.3.2 Implement Step 2: User setup (Priority 1) ✅
 - [x] 6.2.3.3 Implement Step 3: Voice profiles setup (Priority 2) ✅
@@ -642,6 +659,7 @@
 **Goal**: Implement reusable data processing services
 
 #### 6.3.1 Hugging Face Dataset Loader
+
 - [x] 6.3.1.1 Create `HuggingFaceIngestionService` class ✅
 - [x] 6.3.1.2 Implement dataset connection and loading ✅
 - [x] 6.3.1.3 Add dataset caching mechanism ✅
@@ -650,6 +668,7 @@
 - [x] 6.3.1.6 Support streaming for large datasets ✅
 
 #### 6.3.2 Data Processing Services
+
 - [x] 6.3.2.1 Integrate `LyricsCollector` for multiple sources ✅
 - [x] 6.3.2.2 Use `LyricsCleaner` for batch processing ✅
 - [x] 6.3.2.3 Use `LyricsCategorizer` for categorization ✅
@@ -658,6 +677,7 @@
 - [x] 6.3.2.6 Add batch processing support ✅
 
 #### 6.3.3 Integration Services
+
 - [x] 6.3.3.1 Create `HuggingFaceIngestionService` orchestrator ✅
 - [x] 6.3.3.2 Implement progress tracking ✅
 - [x] 6.3.3.3 Add statistics collection ✅
@@ -665,7 +685,8 @@
 - [x] 6.3.3.5 Add batch commit on failure ✅
 
 **Status**: Complete (100%) ✅  
-**Files**: 
+**Files**:
+
 - `/lyrica-backend/app/services/ingestion/huggingface_ingestion.py` (300+ lines)
 - `/lyrica-backend/app/services/ingestion/chromadb_population.py` (240+ lines)
 
@@ -676,12 +697,14 @@
 **Goal**: Populate database tables with initial data
 
 #### 6.4.1 User Seeding
+
 - [x] 6.4.1.1 Implement admin user creation ✅
 - [x] 6.4.1.2 Add test user generation (optional) ✅
 - [x] 6.4.1.3 Verify user authentication ✅
 - [x] 6.4.1.4 Handle existing user detection ✅
 
 #### 6.4.2 Voice Profile Seeding ⭐ CRITICAL
+
 - [x] 6.4.2.1 Load predefined profiles from `voice_config.py` ✅
 - [x] 6.4.2.2 Create database insertion logic ✅
 - [x] 6.4.2.3 Add profile validation ✅
@@ -689,12 +712,14 @@
 - [x] 6.4.2.5 Verify profile availability for TTS ✅
 
 **Profiles to Seed:**
+
 - `male_narrator_1` - Male Narrator (Bark v2/en_speaker_6)
 - `female_singer_1` - Female Singer (Bark v2/en_speaker_9)
 - `male_singer_1` - Male Singer (Bark v2/en_speaker_3)
 - `neutral_soft` - Soft Narrator (Bark v2/en_speaker_1)
 
 #### 6.4.3 Lyrics Seeding from Hugging Face ⭐ CRITICAL FOR RAG
+
 - [x] 6.4.3.1 Implement Hugging Face dataset loading ✅
 - [x] 6.4.3.2 Apply data cleaning pipeline ✅
 - [x] 6.4.3.3 Apply categorization (genre, mood) ✅
@@ -705,16 +730,19 @@
 - [x] 6.4.3.8 Track seeding statistics ✅
 
 **Supported Datasets:**
+
 - Primary: `huggingface-lyrics/genius-lyrics` (330K+ songs) ✅
 - Alternative: `maharshipandya/spotify-tracks-dataset` (114K+ tracks) ✅
 - Fallback: `LeoCordoba/lyrics-dataset` (380K+ songs) ✅
 
 **Quantity Configuration:**
+
 - Development: 1,000 lyrics
 - Staging: 5,000 lyrics
 - Production: 50,000+ lyrics
 
 #### 6.4.4 Database Verification
+
 - [x] 6.4.4.1 Count seeded records per table ✅
 - [x] 6.4.4.2 Verify foreign key relationships ✅
 - [x] 6.4.4.3 Check data quality distribution ✅
@@ -730,6 +758,7 @@
 **Goal**: Populate ChromaDB with lyrics embeddings for RAG
 
 #### 6.5.1 Embedding Pipeline
+
 - [x] 6.5.1.1 Load lyrics from database ✅
 - [x] 6.5.1.2 Apply lyrics chunking strategy ✅
 - [x] 6.5.1.3 Generate embeddings in batches ✅
@@ -737,6 +766,7 @@
 - [x] 6.5.1.5 Implement progress tracking ✅
 
 #### 6.5.2 ChromaDB Indexing
+
 - [x] 6.5.2.1 Initialize ChromaDB collection ✅
 - [x] 6.5.2.2 Batch insert documents with metadata ✅
 - [x] 6.5.2.3 Handle duplicate documents ✅
@@ -744,6 +774,7 @@
 - [x] 6.5.2.5 Implement incremental updates ✅
 
 #### 6.5.3 Search Quality Verification
+
 - [x] 6.5.3.1 Run sample semantic searches ✅
 - [x] 6.5.3.2 Verify retrieval relevance ✅
 - [x] 6.5.3.3 Test genre/mood filtering ✅
@@ -751,6 +782,7 @@
 - [x] 6.5.3.5 Optimize retrieval parameters ✅
 
 #### 6.5.4 Vector Store Maintenance
+
 - [x] 6.5.4.1 Implement collection backup ✅
 - [x] 6.5.4.2 Add collection reset functionality ✅
 - [x] 6.5.4.3 Create statistics dashboard ✅
@@ -766,6 +798,7 @@
 **Goal**: Create user-friendly command-line tools
 
 #### 6.6.1 Main Ingestion CLI
+
 - [x] 6.6.1.1 Implement `scripts/ingest_data.py` ✅
 - [x] 6.6.1.2 Add `--env` flag (development/staging/production) ✅
 - [x] 6.6.1.3 Add `--dataset` flag for dataset selection ✅
@@ -778,6 +811,7 @@
 - [x] 6.6.1.10 Add `--verify` flag for post-ingestion checks ✅
 
 **Usage Examples:**
+
 ```bash
 # Quick start (1,000 lyrics)
 python scripts/ingest_data.py
@@ -799,6 +833,7 @@ python scripts/ingest_data.py --reset
 ```
 
 #### 6.6.2 Verification Tools
+
 - [x] 6.6.2.1 Create `scripts/verify_generation_readiness.py` ✅
 - [x] 6.6.2.2 Implement database stats reporting ✅
 - [x] 6.6.2.3 Add ChromaDB stats reporting ✅
@@ -806,6 +841,7 @@ python scripts/ingest_data.py --reset
 - [x] 6.6.2.5 Generate detailed ingestion report ✅
 
 #### 6.6.3 Maintenance Tools
+
 - [ ] 6.6.3.1 Create `scripts/update_embeddings.py` (Future)
 - [ ] 6.6.3.2 Create `scripts/backup_vector_store.py` (Future)
 - [ ] 6.6.3.3 Create `scripts/cleanup_data.py` (Future)
@@ -813,6 +849,7 @@ python scripts/ingest_data.py --reset
 
 **Status**: Core tools complete (100%) ✅  
 **Files**:
+
 - `/lyrica-backend/scripts/ingest_data.py` (680+ lines)
 - `/lyrica-backend/scripts/verify_generation_readiness.py` (400+ lines)
 
@@ -821,6 +858,7 @@ python scripts/ingest_data.py --reset
 ### 6.7 Testing & Validation ⏳
 
 #### 6.7.1 Unit Tests
+
 - [x] 6.7.1.1 Test `HuggingFaceIngestionService` ✅
 - [ ] 6.7.1.2 Test data processing services (TODO)
 - [ ] 6.7.1.3 Test database seeding functions (TODO)
@@ -828,6 +866,7 @@ python scripts/ingest_data.py --reset
 - [ ] 6.7.1.5 Test configuration loading (TODO)
 
 #### 6.7.2 Integration Tests
+
 - [x] 6.7.2.1 Test end-to-end ingestion pipeline ✅
 - [x] 6.7.2.2 Test with different datasets ✅
 - [x] 6.7.2.3 Test environment-specific behavior ✅
@@ -835,6 +874,7 @@ python scripts/ingest_data.py --reset
 - [x] 6.7.2.5 Test concurrent ingestion ✅
 
 #### 6.7.3 Performance Tests
+
 - [x] 6.7.3.1 Benchmark ingestion speed ✅
 - [x] 6.7.3.2 Test memory usage with large datasets ✅
 - [x] 6.7.3.3 Optimize batch sizes ✅
@@ -843,12 +883,14 @@ python scripts/ingest_data.py --reset
 **Status**: In Progress (60%)  
 **Priority**: Active Development  
 **Files Created** (1,560+ lines total):
+
 - `/lyrica-backend/tests/services/ingestion/test_huggingface_ingestion.py` (350+ lines)
 - `/lyrica-backend/tests/services/ingestion/test_chromadb_population.py` (380+ lines)
 - `/lyrica-backend/tests/integration/test_ingestion_pipeline.py` (460+ lines)
 - `/lyrica-backend/tests/performance/test_ingestion_performance.py` (370+ lines)
 
-**Notes**: 
+**Notes**:
+
 - Test infrastructure and fixtures are in place
 - Tests need to be aligned with actual service implementation
 - All dependencies installed (pytest, pytest-asyncio, pytest-cov)
@@ -858,18 +900,21 @@ python scripts/ingest_data.py --reset
 ### 6.8 Documentation 📝 ✅
 
 #### 6.8.1 User Guides
+
 - [x] 6.8.1.1 Create DATA_INGESTION_ANALYSIS.md ✅
 - [x] 6.8.1.2 Create INGESTION_QUICKSTART.md ✅
 - [x] 6.8.1.3 Create DATA_REQUIREMENTS_SUMMARY.md ✅
 - [x] 6.8.1.4 Document troubleshooting in guides ✅
 
 #### 6.8.2 Developer Guides
+
 - [x] 6.8.2.1 Document ingestion pipeline architecture ✅
 - [x] 6.8.2.2 Document dataset integration ✅
 - [x] 6.8.2.3 Document configuration system ✅
 - [x] 6.8.2.4 Add inline code documentation ✅
 
 #### 6.8.3 Operations Guides
+
 - [x] 6.8.3.1 Document deployment scenarios ✅
 - [x] 6.8.3.2 Document data management ✅
 - [x] 6.8.3.3 Document verification process ✅
@@ -877,6 +922,7 @@ python scripts/ingest_data.py --reset
 
 **Status**: Complete (100%) ✅  
 **Files Created** (2,000+ lines total):
+
 - `/docs/planning/DATA_INGESTION_ANALYSIS.md` (645 lines)
 - `/docs/planning/INGESTION_QUICKSTART.md` (433 lines)
 - `/docs/planning/DATA_REQUIREMENTS_SUMMARY.md` (330 lines)
@@ -911,6 +957,7 @@ python scripts/ingest_data.py --reset
 **Overall Phase 6 Completion**: ~93% (Core Implementation + Testing Infrastructure Complete)
 
 **Recent Additions (6.7 Testing)**:
+
 - ✅ Created comprehensive test suite (1,560+ lines)
 - ✅ Unit tests for HuggingFace ingestion service
 - ✅ Unit tests for ChromaDB population service
@@ -922,14 +969,16 @@ python scripts/ingest_data.py --reset
 
 ## Critical Path for Song Generation
 
-### ✅ Ready for Production:
+### ✅ Ready for Production
+
 ✅ **Step 1:** Database schema (2.2) - Complete  
 ✅ **Step 2:** Vector store services (2.3) - Complete  
 ✅ **Step 3:** LangGraph agents (2.5) - Complete  
 ✅ **Step 4:** Audio services (2.10-2.15) - Complete  
 ✅ **Step 5:** Data ingestion system (6.1-6.6, 6.8) - Complete ⭐
 
-### 🎯 System Capabilities Unlocked:
+### 🎯 System Capabilities Unlocked
+
 - ✅ Can seed users and voice profiles
 - ✅ Can ingest lyrics from Hugging Face datasets
 - ✅ Can populate ChromaDB with embeddings
@@ -938,7 +987,8 @@ python scripts/ingest_data.py --reset
 - ✅ Can generate complete songs
 - ✅ Ready for testing and deployment
 
-### ⏳ Next Steps:
+### ⏳ Next Steps
+
 - **Testing** (6.7): Unit and integration tests
 - **Model Management** (6.9): Ollama model optimization
 - **Deployment**: Development → Staging → Production

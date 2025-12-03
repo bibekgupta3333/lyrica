@@ -116,8 +116,10 @@ class Settings(BaseSettings):
     cors_allow_headers: List[str] = Field(default=["*"], description="Allowed headers")
 
     # Rate Limiting
-    rate_limit_per_minute: int = Field(default=60, description="Requests per minute")
-    rate_limit_per_day: int = Field(default=1000, description="Requests per day")
+    rate_limit_enabled: bool = Field(default=True, description="Enable rate limiting middleware")
+    rate_limit_per_minute: int = Field(default=60, description="Requests per minute per client")
+    rate_limit_per_day: int = Field(default=1000, description="Requests per day per client")
+    rate_limit_window_seconds: int = Field(default=60, description="Rate limit window in seconds")
 
     # Logging Configuration
     log_level: str = Field(default="INFO", description="Log level")
