@@ -128,6 +128,9 @@ class Settings(BaseSettings):
     max_agent_iterations: int = Field(default=3, description="Max agent refinement iterations")
     agent_timeout: int = Field(default=300, description="Agent timeout (seconds)")
     enable_streaming: bool = Field(default=True, description="Enable streaming responses")
+    quality_threshold: float = Field(
+        default=6.5, description="Minimum quality score threshold for song generation (0-10)"
+    )
 
     # Feature Flags
     enable_metrics: bool = Field(default=True, description="Enable Prometheus metrics")

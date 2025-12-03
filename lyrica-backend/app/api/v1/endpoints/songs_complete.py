@@ -167,6 +167,89 @@ async def _generate_song_files(
     status_code=status.HTTP_201_CREATED,
     summary="Generate complete song from scratch",
     description="Generate lyrics, vocals, and music in one workflow (WBS 2.14.1)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_love_song": {
+                            "summary": "Pop Love Song",
+                            "value": {
+                                "lyrics_prompt": "Write a happy pop song about summer love",
+                                "genre": "pop",
+                                "mood": "happy",
+                                "theme": "summer romance",
+                                "title": "Summer Dreams",
+                                "artist_name": "My Artist",
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {"reverb": 0.2, "echo": 0.1},
+                                "bpm": 120,
+                                "key": "C major",
+                                "music_style": "pop",
+                                "duration_seconds": 180,
+                                "use_rag": True,
+                                "llm_provider": "ollama",
+                                "is_public": False,
+                            },
+                        },
+                        "sad_ballad": {
+                            "summary": "Sad Ballad",
+                            "value": {
+                                "lyrics_prompt": "Write a melancholic ballad about losing someone you love",
+                                "genre": "ballad",
+                                "mood": "melancholic",
+                                "theme": "lost love",
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": -2,
+                                "vocal_effects": {"reverb": 0.3, "delay": 0.15},
+                                "bpm": 80,
+                                "key": "C minor",
+                                "duration_seconds": 240,
+                                "use_rag": True,
+                                "is_public": False,
+                            },
+                        },
+                        "rock_anthem": {
+                            "summary": "Rock Anthem",
+                            "value": {
+                                "lyrics_prompt": "Write a powerful rock anthem about freedom and breaking free",
+                                "genre": "rock",
+                                "mood": "powerful",
+                                "theme": "freedom",
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {"distortion": 0.1, "compression": 0.2},
+                                "bpm": 140,
+                                "key": "E major",
+                                "music_style": "rock",
+                                "duration_seconds": 200,
+                                "use_rag": True,
+                                "is_public": True,
+                            },
+                        },
+                        "hip_hop_track": {
+                            "summary": "Hip-Hop Track",
+                            "value": {
+                                "lyrics_prompt": "Write an energetic hip-hop song about chasing dreams",
+                                "genre": "hip-hop",
+                                "mood": "energetic",
+                                "theme": "motivation",
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {},
+                                "bpm": 95,
+                                "key": "A minor",
+                                "duration_seconds": 210,
+                                "use_rag": True,
+                                "is_public": False,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def generate_complete_song(
     request: CompleteSongGenerationRequest,
@@ -229,6 +312,23 @@ async def generate_complete_song(
         # Step 2: Create song record
         logger.info("Step 2/6: Creating song record")
         song = await crud_song.create(db=db, user_id=user_id, obj_in=request, lyrics_id=None)
+
+        # Update voice_profile_id after creation if needed
+        if request.voice_profile_id and not song.voice_profile_id:
+            from sqlalchemy import select
+
+            from app.models.voice_profile import VoiceProfile as VoiceProfileModel
+
+            result = await db.execute(
+                select(VoiceProfileModel).where(
+                    VoiceProfileModel.voice_model == request.voice_profile_id
+                )
+            )
+            voice_profile = result.scalar_one_or_none()
+            if voice_profile:
+                song.voice_profile_id = voice_profile.id
+                await db.commit()
+                await db.refresh(song)
 
         # Update title
         if request.title:
@@ -337,6 +437,41 @@ async def generate_complete_song(
     response_model=SongResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Quick song generation with minimal parameters",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "quick_pop": {
+                            "summary": "Quick Pop Song",
+                            "value": {
+                                "prompt": "Write a happy pop song about dancing",
+                                "voice": "female_singer_1",
+                                "genre": "pop",
+                                "duration": 120,
+                            },
+                        },
+                        "quick_rock": {
+                            "summary": "Quick Rock Song",
+                            "value": {
+                                "prompt": "Write a rock song about rebellion",
+                                "voice": "male_singer_1",
+                                "genre": "rock",
+                                "duration": 180,
+                            },
+                        },
+                        "minimal": {
+                            "summary": "Minimal Request",
+                            "value": {
+                                "prompt": "Write a song about love",
+                                "voice": "female_singer_1",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def generate_quick_song(
     request: QuickSongRequest,
@@ -569,6 +704,48 @@ async def stream_song(
     response_model=SongResponse,
     summary="Regenerate song vocals",
     description="Regenerate vocals with new voice or settings (WBS 2.14.8)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "change_voice": {
+                            "summary": "Change Voice Profile",
+                            "value": {
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                            },
+                        },
+                        "adjust_pitch": {
+                            "summary": "Adjust Pitch",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": 2,
+                                "vocal_effects": None,
+                            },
+                        },
+                        "add_effects": {
+                            "summary": "Add Vocal Effects",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": {"reverb": 0.3, "echo": 0.2, "chorus": 0.1},
+                            },
+                        },
+                        "full_change": {
+                            "summary": "Change Everything",
+                            "value": {
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": -1,
+                                "vocal_effects": {"reverb": 0.25, "delay": 0.1},
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def regenerate_vocals(
     song_id: uuid.UUID,
@@ -674,6 +851,52 @@ async def regenerate_vocals(
     response_model=SongResponse,
     summary="Regenerate song music",
     description="Regenerate instrumental music with new settings (WBS 2.14.9)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "change_genre": {
+                            "summary": "Change Genre",
+                            "value": {
+                                "genre": "rock",
+                                "bpm": None,
+                                "key": None,
+                                "music_style": None,
+                            },
+                        },
+                        "adjust_bpm": {
+                            "summary": "Adjust BPM",
+                            "value": {
+                                "genre": None,
+                                "bpm": 140,
+                                "key": None,
+                                "music_style": None,
+                            },
+                        },
+                        "change_key": {
+                            "summary": "Change Key",
+                            "value": {
+                                "genre": None,
+                                "bpm": None,
+                                "key": "D major",
+                                "music_style": None,
+                            },
+                        },
+                        "full_change": {
+                            "summary": "Change All Music Settings",
+                            "value": {
+                                "genre": "jazz",
+                                "bpm": 100,
+                                "key": "B flat major",
+                                "music_style": "smooth jazz",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def regenerate_music(
     song_id: uuid.UUID,
@@ -756,6 +979,68 @@ async def regenerate_music(
     response_model=SongResponse,
     summary="Update song settings",
     description="Update song metadata and settings (WBS 2.14.10)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "update_title": {
+                            "summary": "Update Title Only",
+                            "value": {
+                                "title": "My Awesome Song (Remix)",
+                                "artist_name": None,
+                                "genre": None,
+                                "mood": None,
+                                "is_public": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "music_params": None,
+                            },
+                        },
+                        "make_public": {
+                            "summary": "Make Song Public",
+                            "value": {
+                                "title": None,
+                                "artist_name": None,
+                                "genre": None,
+                                "mood": None,
+                                "is_public": True,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "music_params": None,
+                            },
+                        },
+                        "update_metadata": {
+                            "summary": "Update Metadata",
+                            "value": {
+                                "title": "New Title",
+                                "artist_name": "My Artist Name",
+                                "genre": "pop",
+                                "mood": "happy",
+                                "is_public": False,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "music_params": None,
+                            },
+                        },
+                        "update_vocal_settings": {
+                            "summary": "Update Vocal Settings",
+                            "value": {
+                                "title": None,
+                                "artist_name": None,
+                                "genre": None,
+                                "mood": None,
+                                "is_public": None,
+                                "vocal_pitch_shift": 2,
+                                "vocal_effects": {"reverb": 0.3},
+                                "music_params": None,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def update_song_settings(
     song_id: uuid.UUID,
@@ -797,6 +1082,68 @@ async def update_song_settings(
     response_model=SongResponse,
     summary="Remix existing song",
     description="Create a remix with new vocals and/or music (WBS 2.14.13)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "remix_vocals_only": {
+                            "summary": "Remix Vocals Only",
+                            "value": {
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {"reverb": 0.3},
+                                "genre": None,
+                                "bpm": None,
+                                "key": None,
+                                "vocals_volume_db": 0.0,
+                                "music_volume_db": -5.0,
+                            },
+                        },
+                        "remix_music_only": {
+                            "summary": "Remix Music Only",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "genre": "electronic",
+                                "bpm": 128,
+                                "key": "A minor",
+                                "vocals_volume_db": 0.0,
+                                "music_volume_db": -3.0,
+                            },
+                        },
+                        "full_remix": {
+                            "summary": "Full Remix",
+                            "value": {
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": 1,
+                                "vocal_effects": {"reverb": 0.2, "chorus": 0.15},
+                                "genre": "pop",
+                                "bpm": 130,
+                                "key": "G major",
+                                "vocals_volume_db": 1.0,
+                                "music_volume_db": -4.0,
+                            },
+                        },
+                        "adjust_mix": {
+                            "summary": "Adjust Mix Levels Only",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "genre": None,
+                                "bpm": None,
+                                "key": None,
+                                "vocals_volume_db": 2.0,
+                                "music_volume_db": -6.0,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def remix_song(
     song_id: uuid.UUID,
@@ -1017,10 +1364,12 @@ async def list_voices():
         VoiceProfileInfo(
             id=profile.id,
             name=profile.name,
-            gender=profile.gender.value,
+            gender=(
+                profile.gender.value if hasattr(profile.gender, "value") else str(profile.gender)
+            ),
             language=profile.language,
             description=profile.description,
-            style=profile.style.value if profile.style else None,
+            style=None,  # VoiceProfile from config doesn't have style attribute
         )
         for profile in profiles
     ]

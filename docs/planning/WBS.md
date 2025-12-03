@@ -222,9 +222,9 @@
 - [x] 2.16.3.2 Add sections relationship loading (lyrics.py) ✅
 - [x] 2.16.3.3 Integrate agent workflow in regenerate_section endpoint (lyrics.py) ✅
 
-#### 2.16.4 Songs Configuration & Auth
-- [ ] 2.16.4.1 Make quality_threshold configurable via settings (songs.py)
-- [ ] 2.16.4.2 Replace hardcoded user_id with auth context (songs.py)
+#### 2.16.4 Songs Configuration & Auth ✅
+- [x] 2.16.4.1 Make quality_threshold configurable via settings (songs.py) ✅
+- [x] 2.16.4.2 Replace hardcoded user_id with auth context (songs.py) ✅
 
 #### 2.16.5 Feedback Authorization
 - [ ] 2.16.5.1 Implement admin role check dependency (feedback.py)
