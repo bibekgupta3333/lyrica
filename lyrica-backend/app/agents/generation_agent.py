@@ -142,7 +142,8 @@ class GenerationAgent:
         prompt = self._build_section_prompt(section, state, rag_context)
 
         # Generate with LLM
-        response = await asyncio.to_thread(self.llm.generate, prompt)
+        llm_response = await self.llm.generate(prompt)
+        response = llm_response.content
 
         # Clean up response
         lyrics = self._clean_lyrics(response)
@@ -259,7 +260,8 @@ Generate a title that:
 
 Output ONLY the title, nothing else:"""
 
-        response = await asyncio.to_thread(self.llm.generate, prompt)
+        llm_response = await self.llm.generate(prompt)
+        response = llm_response.content
 
         # Clean up title
         title = response.strip().strip("\"'")

@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # Ollama Configuration
     ollama_base_url: str = Field(default="http://localhost:11434", description="Ollama base URL")
-    ollama_model: str = Field(default="llama3", description="Ollama model name")
+    ollama_model: str = Field(default="qwen3:0.6b", description="Ollama model name")
     ollama_timeout: int = Field(default=300, description="Ollama request timeout (seconds)")
     ollama_temperature: float = Field(default=0.7, description="LLM temperature")
     ollama_max_tokens: int = Field(default=2048, description="Max tokens to generate")

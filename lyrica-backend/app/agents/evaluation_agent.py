@@ -123,7 +123,8 @@ class EvaluationAgent:
         prompt = self._build_evaluation_prompt(lyrics, state)
 
         # Get evaluation from LLM
-        response = await asyncio.to_thread(self.llm.generate, prompt)
+        llm_response = await self.llm.generate(prompt)
+        response = llm_response.content
 
         # Parse scores and feedback
         evaluation = self._parse_evaluation_response(response)

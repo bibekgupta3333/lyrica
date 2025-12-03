@@ -55,7 +55,8 @@ class PlanningAgent:
 
             # Generate structure plan
             logger.debug(f"Generating song structure for prompt: {state.prompt[:100]}...")
-            response = await asyncio.to_thread(self.llm.generate, planning_prompt)
+            llm_response = await self.llm.generate(planning_prompt)
+            response = llm_response.content
 
             # Parse the structure from response
             structure = self._parse_structure_response(response, state)
