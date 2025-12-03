@@ -23,7 +23,6 @@ from app.services.audio import (
     get_audio_converter,
     get_audio_mastering,
     get_audio_metadata,
-    get_audio_mixer,
     get_audio_storage,
     get_audio_waveform,
 )
@@ -85,7 +84,58 @@ class MasteringRequest(BaseModel):
 # ============================================================================
 
 
-@router.post("/upload", response_model=AudioUploadResponse)
+@router.post(
+    "/upload",
+    response_model=AudioUploadResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "Audio file (WAV, MP3, OGG, FLAC, etc.)",
+                            },
+                            "category": {
+                                "type": "string",
+                                "description": "Storage category",
+                                "default": "songs",
+                                "enum": ["songs", "voices", "music", "temp"],
+                            },
+                        },
+                        "required": ["file"],
+                    },
+                    "examples": {
+                        "song_upload": {
+                            "summary": "Upload Song",
+                            "value": {
+                                "file": "(binary)",
+                                "category": "songs",
+                            },
+                        },
+                        "voice_upload": {
+                            "summary": "Upload Voice",
+                            "value": {
+                                "file": "(binary)",
+                                "category": "voices",
+                            },
+                        },
+                        "music_upload": {
+                            "summary": "Upload Music",
+                            "value": {
+                                "file": "(binary)",
+                                "category": "music",
+                            },
+                        },
+                    },
+                }
+            }
+        }
+    },
+)
 async def upload_audio(
     file: UploadFile = File(...),
     category: str = Form(default="songs"),
@@ -128,7 +178,39 @@ async def upload_audio(
         )
 
 
-@router.get("/download/{filename}")
+@router.get(
+    "/download/{filename}",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_file": {
+                        "summary": "Song File",
+                        "value": "my_song.wav",
+                    },
+                    "voice_file": {
+                        "summary": "Voice File",
+                        "value": "vocals.mp3",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+                "examples": {
+                    "songs": {"summary": "Songs Category", "value": "songs"},
+                    "voices": {"summary": "Voices Category", "value": "voices"},
+                },
+            },
+        ]
+    },
+)
 async def download_audio(filename: str, category: str = "songs"):
     """
     Download an audio file.
@@ -170,7 +252,40 @@ async def download_audio(filename: str, category: str = "songs"):
 # ============================================================================
 
 
-@router.get("/metadata/{filename}", response_model=AudioMetadataResponse)
+@router.get(
+    "/metadata/{filename}",
+    response_model=AudioMetadataResponse,
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_metadata": {
+                        "summary": "Song Metadata",
+                        "value": "my_song.wav",
+                    },
+                    "voice_metadata": {
+                        "summary": "Voice Metadata",
+                        "value": "vocals.mp3",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+                "examples": {
+                    "songs": {"summary": "Songs Category", "value": "songs"},
+                    "music": {"summary": "Music Category", "value": "music"},
+                },
+            },
+        ]
+    },
+)
 async def get_metadata(filename: str, category: str = "songs"):
     """
     Get audio file metadata.
@@ -212,7 +327,67 @@ async def get_metadata(filename: str, category: str = "songs"):
 # ============================================================================
 
 
-@router.post("/convert/{filename}")
+@router.post(
+    "/convert/{filename}",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "convert_song": {
+                        "summary": "Convert Song",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ],
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "to_mp3": {
+                            "summary": "Convert to MP3",
+                            "value": {
+                                "target_format": "mp3",
+                                "quality": "high",
+                            },
+                        },
+                        "to_wav": {
+                            "summary": "Convert to WAV",
+                            "value": {
+                                "target_format": "wav",
+                                "quality": "high",
+                            },
+                        },
+                        "to_ogg": {
+                            "summary": "Convert to OGG",
+                            "value": {
+                                "target_format": "ogg",
+                                "quality": "medium",
+                            },
+                        },
+                        "to_flac": {
+                            "summary": "Convert to FLAC",
+                            "value": {
+                                "target_format": "flac",
+                                "quality": "high",
+                            },
+                        },
+                    }
+                }
+            }
+        },
+    },
+)
 async def convert_audio(
     filename: str,
     conversion: ConversionRequest,
@@ -273,7 +448,31 @@ async def convert_audio(
 # ============================================================================
 
 
-@router.get("/waveform/{filename}")
+@router.get(
+    "/waveform/{filename}",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_waveform": {
+                        "summary": "Song Waveform",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ]
+    },
+)
 async def generate_waveform(filename: str, category: str = "songs"):
     """
     Generate waveform image for audio file.
@@ -315,7 +514,42 @@ async def generate_waveform(filename: str, category: str = "songs"):
         )
 
 
-@router.get("/waveform-data/{filename}")
+@router.get(
+    "/waveform-data/{filename}",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_data": {
+                        "summary": "Song Waveform Data",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+            {
+                "name": "samples",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 1000, "minimum": 100, "maximum": 10000},
+                "examples": {
+                    "low_res": {"summary": "Low Resolution", "value": 500},
+                    "default": {"summary": "Default", "value": 1000},
+                    "high_res": {"summary": "High Resolution", "value": 5000},
+                },
+            },
+        ]
+    },
+)
 async def get_waveform_data(filename: str, category: str = "songs", samples: int = 1000):
     """
     Get waveform data points (for frontend visualization).
@@ -358,7 +592,63 @@ async def get_waveform_data(filename: str, category: str = "songs", samples: int
 # ============================================================================
 
 
-@router.post("/master/{filename}")
+@router.post(
+    "/master/{filename}",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "master_song": {
+                        "summary": "Master Song",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ],
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "standard_mastering": {
+                            "summary": "Standard Mastering",
+                            "value": {
+                                "target_loudness": -14.0,
+                                "peak_limit": -1.0,
+                                "apply_compression": True,
+                            },
+                        },
+                        "loud_mastering": {
+                            "summary": "Loud Mastering",
+                            "value": {
+                                "target_loudness": -12.0,
+                                "peak_limit": -0.5,
+                                "apply_compression": True,
+                            },
+                        },
+                        "gentle_mastering": {
+                            "summary": "Gentle Mastering",
+                            "value": {
+                                "target_loudness": -16.0,
+                                "peak_limit": -2.0,
+                                "apply_compression": False,
+                            },
+                        },
+                    }
+                }
+            }
+        },
+    },
+)
 async def master_audio(
     filename: str,
     mastering: MasteringRequest,
@@ -415,7 +705,31 @@ async def master_audio(
         )
 
 
-@router.get("/analyze/{filename}")
+@router.get(
+    "/analyze/{filename}",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "analyze_song": {
+                        "summary": "Analyze Song",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ]
+    },
+)
 async def analyze_audio(filename: str, category: str = "songs"):
     """
     Analyze audio loudness and quality metrics.

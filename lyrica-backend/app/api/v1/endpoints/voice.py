@@ -12,14 +12,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from app.core.voice_config import (
-    TTSEngine,
-    VoiceGender,
-    VoiceProfile,
-    VoiceStyle,
-    get_voice_profile,
-    list_voice_profiles,
-)
+from app.core.voice_config import TTSEngine, VoiceGender, get_voice_profile, list_voice_profiles
 from app.services.voice import get_pitch_control, get_vocal_effects, get_voice_synthesis
 
 router = APIRouter(prefix="/voice", tags=["Voice Synthesis"])
@@ -92,7 +85,45 @@ class SynthesisResponse(BaseModel):
 
 
 # Endpoints
-@router.get("/profiles", response_model=list[VoiceProfileResponse])
+@router.get(
+    "/profiles",
+    response_model=list[VoiceProfileResponse],
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "gender",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["male", "female", "neutral"]},
+                "examples": {
+                    "male": {"summary": "Male Voices", "value": "male"},
+                    "female": {"summary": "Female Voices", "value": "female"},
+                    "neutral": {"summary": "Neutral Voices", "value": "neutral"},
+                },
+            },
+            {
+                "name": "language",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "examples": {
+                    "english": {"summary": "English", "value": "en"},
+                    "spanish": {"summary": "Spanish", "value": "es"},
+                },
+            },
+            {
+                "name": "engine",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["bark", "coqui", "elevenlabs"]},
+                "examples": {
+                    "bark": {"summary": "Bark Engine", "value": "bark"},
+                    "coqui": {"summary": "Coqui Engine", "value": "coqui"},
+                },
+            },
+        ]
+    },
+)
 async def get_voice_profiles(
     gender: Optional[VoiceGender] = None,
     language: Optional[str] = None,
@@ -107,7 +138,34 @@ async def get_voice_profiles(
     return [VoiceProfileResponse(**p.model_dump()) for p in profiles]
 
 
-@router.get("/profiles/{profile_id}", response_model=VoiceProfileResponse)
+@router.get(
+    "/profiles/{profile_id}",
+    response_model=VoiceProfileResponse,
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "profile_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "male_narrator": {
+                        "summary": "Male Narrator",
+                        "value": "male_narrator_1",
+                    },
+                    "female_singer": {
+                        "summary": "Female Singer",
+                        "value": "female_singer_1",
+                    },
+                    "male_singer": {
+                        "summary": "Male Singer",
+                        "value": "male_singer_1",
+                    },
+                },
+            }
+        ]
+    },
+)
 async def get_profile_details(profile_id: str):
     """Get details of a specific voice profile."""
     profile = get_voice_profile(profile_id)
@@ -119,7 +177,56 @@ async def get_profile_details(profile_id: str):
     return VoiceProfileResponse(**profile.model_dump())
 
 
-@router.post("/synthesize", response_model=SynthesisResponse)
+@router.post(
+    "/synthesize",
+    response_model=SynthesisResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "male_narrator": {
+                            "summary": "Male Narrator Voice",
+                            "value": {
+                                "text": "Hello, world! This is a test of voice synthesis.",
+                                "voice_profile_id": "male_narrator_1",
+                                "temperature": 0.7,
+                                "speed": 1.0,
+                            },
+                        },
+                        "female_singer": {
+                            "summary": "Female Singer Voice",
+                            "value": {
+                                "text": "Welcome to our music platform. Let's create something amazing together!",
+                                "voice_profile_id": "female_singer_1",
+                                "temperature": 0.8,
+                                "speed": 1.1,
+                            },
+                        },
+                        "fast_speech": {
+                            "summary": "Fast Speech",
+                            "value": {
+                                "text": "This is a quick announcement.",
+                                "voice_profile_id": "male_narrator_1",
+                                "temperature": 0.6,
+                                "speed": 1.5,
+                            },
+                        },
+                        "slow_emotive": {
+                            "summary": "Slow Emotive Speech",
+                            "value": {
+                                "text": "Take your time. Feel every word.",
+                                "voice_profile_id": "female_singer_1",
+                                "temperature": 0.9,
+                                "speed": 0.8,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def synthesize_speech(request: SynthesizeRequest):
     """
     Synthesize speech from text using specified voice profile.
@@ -174,7 +281,52 @@ async def synthesize_speech(request: SynthesizeRequest):
         )
 
 
-@router.post("/synthesize/lyrics", response_model=SynthesisResponse)
+@router.post(
+    "/synthesize/lyrics",
+    response_model=SynthesisResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "verse_and_chorus": {
+                            "summary": "Verse and Chorus",
+                            "value": {
+                                "lyrics": "[Verse 1]\nIn the morning light, I see your face\nShining like the sun, in this special place\n\n[Chorus]\nOh yeah, this is our song\nWe'll sing it all night long",
+                                "voice_profile_id": "female_singer_1",
+                                "chunk_by_sentences": True,
+                            },
+                        },
+                        "full_song": {
+                            "summary": "Full Song Lyrics",
+                            "value": {
+                                "lyrics": "[Verse 1]\nWalking down the street\nFeeling the beat\n\n[Chorus]\nDancing in the moonlight\nEverything feels right\n\n[Verse 2]\nMusic fills the air\nNo time for a care\n\n[Chorus]\nDancing in the moonlight\nEverything feels right",
+                                "voice_profile_id": "male_singer_1",
+                                "chunk_by_sentences": True,
+                            },
+                        },
+                        "ballad_style": {
+                            "summary": "Ballad Style",
+                            "value": {
+                                "lyrics": "[Verse]\nIn the quiet of the night\nI think of you\nAll the moments we shared\nSo few, so true\n\n[Bridge]\nTime moves on\nBut memories stay\nIn my heart forever\nThey'll never fade away",
+                                "voice_profile_id": "female_singer_1",
+                                "chunk_by_sentences": True,
+                            },
+                        },
+                        "rap_style": {
+                            "summary": "Rap Style (No Chunking)",
+                            "value": {
+                                "lyrics": "Yo, check it out, I'm on the mic\nSpitting rhymes that are so tight\nEvery word I say is true\nThis is what I came to do",
+                                "voice_profile_id": "male_singer_1",
+                                "chunk_by_sentences": False,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def synthesize_lyrics(request: SynthesizeLyricsRequest):
     """
     Synthesize song lyrics with appropriate phrasing and timing.
@@ -229,7 +381,64 @@ async def synthesize_lyrics(request: SynthesizeLyricsRequest):
         )
 
 
-@router.post("/adjust/pitch")
+@router.post(
+    "/adjust/pitch",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "Audio file (WAV, MP3, etc.)",
+                            },
+                            "semitones": {
+                                "type": "number",
+                                "description": "Pitch shift in semitones (-12 to +12)",
+                                "minimum": -12,
+                                "maximum": 12,
+                            },
+                        },
+                        "required": ["file", "semitones"],
+                    },
+                    "examples": {
+                        "shift_up_octave": {
+                            "summary": "Shift Up One Octave",
+                            "value": {
+                                "file": "(binary)",
+                                "semitones": 12,
+                            },
+                        },
+                        "shift_down_fifth": {
+                            "summary": "Shift Down Perfect Fifth",
+                            "value": {
+                                "file": "(binary)",
+                                "semitones": -7,
+                            },
+                        },
+                        "minor_shift_up": {
+                            "summary": "Minor Shift Up",
+                            "value": {
+                                "file": "(binary)",
+                                "semitones": 2,
+                            },
+                        },
+                        "minor_shift_down": {
+                            "summary": "Minor Shift Down",
+                            "value": {
+                                "file": "(binary)",
+                                "semitones": -2,
+                            },
+                        },
+                    },
+                }
+            }
+        }
+    },
+)
 async def adjust_pitch(file: UploadFile = File(...), semitones: float = Form(...)):
     """
     Adjust pitch of uploaded audio file.
@@ -275,7 +484,64 @@ async def adjust_pitch(file: UploadFile = File(...), semitones: float = Form(...
         input_path.unlink(missing_ok=True)
 
 
-@router.post("/adjust/tempo")
+@router.post(
+    "/adjust/tempo",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "Audio file (WAV, MP3, etc.)",
+                            },
+                            "tempo_factor": {
+                                "type": "number",
+                                "description": "Tempo multiplier (0.5 to 2.0, 1.0 = normal)",
+                                "minimum": 0.5,
+                                "maximum": 2.0,
+                            },
+                        },
+                        "required": ["file", "tempo_factor"],
+                    },
+                    "examples": {
+                        "slow_down_50": {
+                            "summary": "Slow Down 50%",
+                            "value": {
+                                "file": "(binary)",
+                                "tempo_factor": 0.5,
+                            },
+                        },
+                        "speed_up_50": {
+                            "summary": "Speed Up 50%",
+                            "value": {
+                                "file": "(binary)",
+                                "tempo_factor": 1.5,
+                            },
+                        },
+                        "slow_down_25": {
+                            "summary": "Slow Down 25%",
+                            "value": {
+                                "file": "(binary)",
+                                "tempo_factor": 0.75,
+                            },
+                        },
+                        "speed_up_25": {
+                            "summary": "Speed Up 25%",
+                            "value": {
+                                "file": "(binary)",
+                                "tempo_factor": 1.25,
+                            },
+                        },
+                    },
+                }
+            }
+        }
+    },
+)
 async def adjust_tempo(file: UploadFile = File(...), tempo_factor: float = Form(...)):
     """
     Adjust tempo of uploaded audio file without changing pitch.
@@ -321,7 +587,63 @@ async def adjust_tempo(file: UploadFile = File(...), tempo_factor: float = Form(
         input_path.unlink(missing_ok=True)
 
 
-@router.post("/effects")
+@router.post(
+    "/effects",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "Audio file (WAV, MP3, etc.)",
+                            },
+                            "effects": {
+                                "type": "string",
+                                "description": "JSON string of effects configuration",
+                                "format": "json",
+                            },
+                        },
+                        "required": ["file", "effects"],
+                    },
+                    "examples": {
+                        "reverb_only": {
+                            "summary": "Reverb Only",
+                            "value": {
+                                "file": "(binary)",
+                                "effects": '{"reverb": {"room_size": 0.7, "damping": 0.5, "wet_level": 0.4}}',
+                            },
+                        },
+                        "echo_and_reverb": {
+                            "summary": "Echo and Reverb",
+                            "value": {
+                                "file": "(binary)",
+                                "effects": '{"reverb": {"room_size": 0.7, "wet_level": 0.4}, "echo": {"delay_ms": 500, "decay": 0.3}}',
+                            },
+                        },
+                        "full_effects": {
+                            "summary": "Full Effects Suite",
+                            "value": {
+                                "file": "(binary)",
+                                "effects": '{"reverb": {"room_size": 0.7, "wet_level": 0.4}, "echo": {"delay_ms": 500, "decay": 0.3}, "compression": {"threshold": -20, "ratio": 4}, "eq": {"low_shelf_db": 2, "mid_db": 0, "high_shelf_db": -2}, "denoise": 0.5}',
+                            },
+                        },
+                        "compression_eq": {
+                            "summary": "Compression and EQ",
+                            "value": {
+                                "file": "(binary)",
+                                "effects": '{"compression": {"threshold": -20, "ratio": 4}, "eq": {"low_shelf_db": 2, "mid_db": 0, "high_shelf_db": -2}}',
+                            },
+                        },
+                    },
+                }
+            }
+        }
+    },
+)
 async def apply_effects(file: UploadFile = File(...), effects: str = Form(...)):
     """
     Apply vocal effects to uploaded audio file.
@@ -421,7 +743,58 @@ async def apply_effects(file: UploadFile = File(...), effects: str = Form(...)):
         input_path.unlink(missing_ok=True)
 
 
-@router.post("/voice-activity-detection")
+@router.post(
+    "/voice-activity-detection",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "Audio file (WAV, MP3, etc.)",
+                            },
+                            "threshold": {
+                                "type": "number",
+                                "description": "Voice activity detection threshold (0-1)",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                                "default": 0.5,
+                            },
+                        },
+                        "required": ["file"],
+                    },
+                    "examples": {
+                        "default_threshold": {
+                            "summary": "Default Threshold (0.5)",
+                            "value": {
+                                "file": "(binary)",
+                                "threshold": 0.5,
+                            },
+                        },
+                        "sensitive": {
+                            "summary": "Sensitive Detection (0.3)",
+                            "value": {
+                                "file": "(binary)",
+                                "threshold": 0.3,
+                            },
+                        },
+                        "strict": {
+                            "summary": "Strict Detection (0.7)",
+                            "value": {
+                                "file": "(binary)",
+                                "threshold": 0.7,
+                            },
+                        },
+                    },
+                }
+            }
+        }
+    },
+)
 async def detect_voice_activity(
     file: UploadFile = File(...),
     threshold: float = Form(default=0.5, ge=0.0, le=1.0),

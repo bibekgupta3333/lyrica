@@ -422,6 +422,22 @@ async def generate_lyrics(
     response_model=LyricsWithSections,
     summary="Get lyrics by ID",
     description="Retrieve lyrics by ID with sections",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "lyrics_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_id": {
+                        "summary": "Example Lyrics ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    },
+                },
+            }
+        ]
+    },
 )
 async def get_lyrics(
     lyrics_id: UUID,
@@ -495,6 +511,52 @@ async def get_lyrics(
     response_model=List[Lyrics],
     summary="List lyrics",
     description="Get list of lyrics with optional filters",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "skip",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 0, "minimum": 0},
+                "examples": {
+                    "first_page": {"summary": "First Page", "value": 0},
+                    "second_page": {"summary": "Second Page", "value": 20},
+                },
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 100, "minimum": 1, "maximum": 100},
+                "examples": {
+                    "small": {"summary": "Small Page", "value": 10},
+                    "default": {"summary": "Default", "value": 100},
+                    "large": {"summary": "Large Page", "value": 100},
+                },
+            },
+            {
+                "name": "genre",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "examples": {
+                    "pop": {"summary": "Pop Genre", "value": "pop"},
+                    "rock": {"summary": "Rock Genre", "value": "rock"},
+                    "hip-hop": {"summary": "Hip-Hop Genre", "value": "hip-hop"},
+                },
+            },
+            {
+                "name": "public_only",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "boolean", "default": False},
+                "examples": {
+                    "public": {"summary": "Public Only", "value": True},
+                    "private": {"summary": "Private Only", "value": False},
+                },
+            },
+        ]
+    },
 )
 async def list_lyrics(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -680,6 +742,34 @@ async def delete_lyrics(
     response_model=Lyrics,
     summary="Regenerate lyrics section",
     description="Regenerate a specific section of the lyrics",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "lyrics_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_id": {
+                        "summary": "Example Lyrics ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    },
+                },
+            },
+            {
+                "name": "section_type",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "verse": {"summary": "Regenerate Verse", "value": "verse"},
+                    "chorus": {"summary": "Regenerate Chorus", "value": "chorus"},
+                    "bridge": {"summary": "Regenerate Bridge", "value": "bridge"},
+                    "intro": {"summary": "Regenerate Intro", "value": "intro"},
+                },
+            },
+        ]
+    },
 )
 async def regenerate_lyrics_section(
     lyrics_id: UUID,
@@ -809,6 +899,31 @@ async def regenerate_lyrics_section(
     response_model=List[Lyrics],
     summary="Get generation history",
     description="Get user's lyrics generation history",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "skip",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 0, "minimum": 0},
+                "examples": {
+                    "first_page": {"summary": "First Page", "value": 0},
+                    "second_page": {"summary": "Second Page", "value": 50},
+                },
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100},
+                "examples": {
+                    "small": {"summary": "Small Page", "value": 20},
+                    "default": {"summary": "Default", "value": 50},
+                    "large": {"summary": "Large Page", "value": 100},
+                },
+            },
+        ]
+    },
 )
 async def get_generation_history(
     skip: int = Query(0, ge=0),
@@ -841,6 +956,42 @@ async def get_generation_history(
     response_model=List[Lyrics],
     summary="Explore public lyrics",
     description="Browse public lyrics from all users",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "skip",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 0, "minimum": 0},
+                "examples": {
+                    "first_page": {"summary": "First Page", "value": 0},
+                    "second_page": {"summary": "Second Page", "value": 20},
+                },
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100},
+                "examples": {
+                    "small": {"summary": "Small Page", "value": 10},
+                    "default": {"summary": "Default", "value": 20},
+                    "large": {"summary": "Large Page", "value": 50},
+                },
+            },
+            {
+                "name": "genre",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "examples": {
+                    "pop": {"summary": "Pop Genre", "value": "pop"},
+                    "rock": {"summary": "Rock Genre", "value": "rock"},
+                    "jazz": {"summary": "Jazz Genre", "value": "jazz"},
+                },
+            },
+        ]
+    },
 )
 async def explore_public_lyrics(
     skip: int = Query(0, ge=0),

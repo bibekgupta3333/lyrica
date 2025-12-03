@@ -77,7 +77,41 @@ class VectorStoreStats(BaseModel):
 
 
 # Endpoints
-@router.post("/ingest/document", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/ingest/document",
+    status_code=status.HTTP_201_CREATED,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "recursive_chunking": {
+                            "summary": "Recursive Chunking",
+                            "value": {
+                                "document_id": "123e4567-e89b-12d3-a456-426614174000",
+                                "chunking_strategy": "recursive",
+                            },
+                        },
+                        "sentence_chunking": {
+                            "summary": "Sentence Chunking",
+                            "value": {
+                                "document_id": "123e4567-e89b-12d3-a456-426614174001",
+                                "chunking_strategy": "sentence",
+                            },
+                        },
+                        "paragraph_chunking": {
+                            "summary": "Paragraph Chunking",
+                            "value": {
+                                "document_id": "123e4567-e89b-12d3-a456-426614174002",
+                                "chunking_strategy": "paragraph",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def ingest_document(
     request: IngestDocumentRequest,
     db: AsyncSession = Depends(get_db),
@@ -110,7 +144,26 @@ async def ingest_document(
         )
 
 
-@router.post("/ingest/lyrics", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/ingest/lyrics",
+    status_code=status.HTTP_201_CREATED,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "ingest_lyrics": {
+                            "summary": "Ingest Lyrics",
+                            "value": {
+                                "lyrics_id": "123e4567-e89b-12d3-a456-426614174000",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def ingest_lyrics(
     request: IngestLyricsRequest,
     db: AsyncSession = Depends(get_db),
@@ -139,7 +192,44 @@ async def ingest_lyrics(
         )
 
 
-@router.post("/ingest/custom", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/ingest/custom",
+    status_code=status.HTTP_201_CREATED,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "song_reference": {
+                            "summary": "Song Reference Text",
+                            "value": {
+                                "text": "This is a reference song about love and summer. It has verses and a chorus about beach days and sunsets.",
+                                "metadata": {"genre": "pop", "mood": "happy", "theme": "love"},
+                                "chunking_strategy": "recursive",
+                            },
+                        },
+                        "lyrics_style_guide": {
+                            "summary": "Lyrics Style Guide",
+                            "value": {
+                                "text": "Pop songs typically have verse-chorus structure. Verses tell a story, choruses repeat the main theme. Bridge sections provide contrast.",
+                                "metadata": {"type": "style_guide", "genre": "pop"},
+                                "chunking_strategy": "paragraph",
+                            },
+                        },
+                        "poetry_example": {
+                            "summary": "Poetry Example",
+                            "value": {
+                                "text": "Roses are red, violets are blue. Poetry can inspire song lyrics with its rhythm and imagery.",
+                                "metadata": {"type": "poetry", "style": "rhyming"},
+                                "chunking_strategy": "sentence",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def ingest_custom_text(
     request: IngestCustomTextRequest,
 ) -> Dict[str, Any]:
@@ -168,7 +258,51 @@ async def ingest_custom_text(
         )
 
 
-@router.post("/search")
+@router.post(
+    "/search",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "love_song_search": {
+                            "summary": "Search Love Songs",
+                            "value": {
+                                "query": "songs about falling in love",
+                                "n_results": 5,
+                                "filters": None,
+                            },
+                        },
+                        "genre_filtered": {
+                            "summary": "Genre Filtered Search",
+                            "value": {
+                                "query": "upbeat pop music",
+                                "n_results": 10,
+                                "filters": {"genre": "pop"},
+                            },
+                        },
+                        "mood_filtered": {
+                            "summary": "Mood Filtered Search",
+                            "value": {
+                                "query": "sad ballad lyrics",
+                                "n_results": 5,
+                                "filters": {"mood": "sad", "genre": "ballad"},
+                            },
+                        },
+                        "theme_search": {
+                            "summary": "Theme Search",
+                            "value": {
+                                "query": "songs about summer",
+                                "n_results": 8,
+                                "filters": {"theme": "summer"},
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def search_vectors(
     request: SearchRequest,
 ) -> Dict[str, Any]:
@@ -194,7 +328,46 @@ async def search_vectors(
         )
 
 
-@router.post("/query")
+@router.post(
+    "/query",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "lyrics_question": {
+                            "summary": "Lyrics Question",
+                            "value": {
+                                "query": "What are common themes in pop songs?",
+                                "n_results": 5,
+                                "filters": None,
+                                "system_prompt": None,
+                            },
+                        },
+                        "genre_analysis": {
+                            "summary": "Genre Analysis",
+                            "value": {
+                                "query": "Analyze the structure of hip-hop songs",
+                                "n_results": 10,
+                                "filters": {"genre": "hip-hop"},
+                                "system_prompt": "You are a music analyst expert.",
+                            },
+                        },
+                        "creative_inspiration": {
+                            "summary": "Creative Inspiration",
+                            "value": {
+                                "query": "Give me ideas for a love song chorus",
+                                "n_results": 3,
+                                "filters": {"theme": "love"},
+                                "system_prompt": "You are a creative songwriter assistant.",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def rag_query(
     request: RAGQueryRequest,
 ) -> Dict[str, Any]:
@@ -221,7 +394,59 @@ async def rag_query(
         )
 
 
-@router.post("/generate/lyrics")
+@router.post(
+    "/generate/lyrics",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_love_song": {
+                            "summary": "Pop Love Song",
+                            "value": {
+                                "theme": "summer love",
+                                "genre": "pop",
+                                "mood": "happy",
+                                "structure": "verse-chorus-verse-chorus-bridge-chorus",
+                                "n_context_docs": 3,
+                            },
+                        },
+                        "rock_anthem": {
+                            "summary": "Rock Anthem",
+                            "value": {
+                                "theme": "freedom and rebellion",
+                                "genre": "rock",
+                                "mood": "energetic",
+                                "structure": "verse-chorus-verse-chorus-solo-chorus",
+                                "n_context_docs": 5,
+                            },
+                        },
+                        "ballad_heartbreak": {
+                            "summary": "Ballad Heartbreak",
+                            "value": {
+                                "theme": "lost love",
+                                "genre": "ballad",
+                                "mood": "melancholic",
+                                "structure": "verse-chorus-verse-chorus-bridge-chorus",
+                                "n_context_docs": 4,
+                            },
+                        },
+                        "hip_hop_motivational": {
+                            "summary": "Hip-Hop Motivational",
+                            "value": {
+                                "theme": "overcoming obstacles",
+                                "genre": "hip-hop",
+                                "mood": "uplifting",
+                                "structure": None,
+                                "n_context_docs": 3,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_lyrics_with_rag(
     request: GenerateLyricsRequest,
 ) -> Dict[str, Any]:
