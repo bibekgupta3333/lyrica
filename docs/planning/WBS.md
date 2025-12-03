@@ -227,8 +227,8 @@
 - [x] 2.16.4.2 Replace hardcoded user_id with auth context (songs.py) ✅
 
 #### 2.16.5 Feedback Authorization
-- [ ] 2.16.5.1 Implement admin role check dependency (feedback.py)
-- [ ] 2.16.5.2 Add ownership/permission check for feedback deletion (feedback.py)
+- [x] 2.16.5.1 Implement admin role check dependency (feedback.py)
+- [x] 2.16.5.2 Add ownership/permission check for feedback deletion (feedback.py)
 
 #### 2.16.6 Rate Limiting Implementation
 - [ ] 2.16.6.1 Create Redis client module (app/core/redis.py)
