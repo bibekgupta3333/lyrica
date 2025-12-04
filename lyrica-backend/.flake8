@@ -1,0 +1,58 @@
+[flake8]
+# Flake8 configuration for Lyrica Backend
+# Aligned with Black formatter (line-length=100)
+
+# Maximum line length (matches Black)
+max-line-length = 100
+
+# Maximum complexity
+max-complexity = 10
+
+# Exclude patterns (matches Black's exclude)
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    .eggs,
+    *.egg,
+    .mypy_cache,
+    .pytest_cache,
+    .tox,
+    build,
+    dist,
+    alembic/versions,
+    htmlcov,
+    .coverage,
+    coverage.xml
+
+# Ignore specific error codes
+# E501: line too long (handled by Black)
+# E203: whitespace before ':' (conflicts with Black)
+# W503: line break before binary operator (conflicts with Black)
+# E402: module level import not at top of file (sometimes needed)
+# F401: imported but unused (handled by isort/unused-import tools)
+# E722: do not use bare except (too strict for some error handling)
+ignore =
+    E501,  # line too long (Black handles this)
+    E203,  # whitespace before ':' (Black formatting)
+    W503,  # line break before binary operator (Black formatting)
+    E402,  # module level import not at top (sometimes needed for config)
+    F401,  # imported but unused (isort/unused-import handles this)
+
+# Per-file ignores
+per-file-ignores =
+    __init__.py:F401  # Allow unused imports in __init__.py
+    tests/*:E501,F401  # More lenient in tests
+
+# Count errors
+count = False
+
+# Show source
+show-source = True
+
+# Statistics
+statistics = False
+
+# Verbose output
+verbose = False

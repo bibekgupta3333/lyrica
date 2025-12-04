@@ -12,13 +12,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from app.core.music_config import (
-    MusicGenre,
-    MusicKey,
-    MusicMood,
-    MusicStructure,
-    get_genre_bpm_range,
-)
+from app.core.music_config import MusicGenre, MusicKey, MusicMood, get_genre_bpm_range
 from app.services.music import get_chord_service, get_melody_service, get_music_generation
 
 router = APIRouter(prefix="/music", tags=["Music Generation"])
@@ -100,7 +94,52 @@ class ChordProgressionResponse(BaseModel):
 
 
 # Endpoints
-@router.post("/generate", response_model=MusicGenerationResponse)
+@router.post(
+    "/generate",
+    response_model=MusicGenerationResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "upbeat_pop": {
+                            "summary": "Upbeat Pop Music",
+                            "value": {
+                                "prompt": "upbeat pop music with piano and drums",
+                                "duration": 30,
+                                "temperature": 1.0,
+                            },
+                        },
+                        "ambient_chill": {
+                            "summary": "Ambient Chill",
+                            "value": {
+                                "prompt": "calming ambient music with soft synthesizers",
+                                "duration": 60,
+                                "temperature": 0.8,
+                            },
+                        },
+                        "rock_anthem": {
+                            "summary": "Rock Anthem",
+                            "value": {
+                                "prompt": "powerful rock anthem with electric guitar and heavy drums",
+                                "duration": 45,
+                                "temperature": 1.2,
+                            },
+                        },
+                        "jazz_smooth": {
+                            "summary": "Smooth Jazz",
+                            "value": {
+                                "prompt": "smooth jazz with saxophone and piano",
+                                "duration": 90,
+                                "temperature": 0.9,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_music(request: GenerateMusicRequest):
     """
     Generate music from text prompt using MusicGen AI.
@@ -139,7 +178,60 @@ async def generate_music(request: GenerateMusicRequest):
         )
 
 
-@router.post("/generate/genre", response_model=MusicGenerationResponse)
+@router.post(
+    "/generate/genre",
+    response_model=MusicGenerationResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "happy_pop": {
+                            "summary": "Happy Pop",
+                            "value": {
+                                "genre": "pop",
+                                "mood": "happy",
+                                "key": "C",
+                                "bpm": 120,
+                                "duration": 30,
+                            },
+                        },
+                        "sad_ballad": {
+                            "summary": "Sad Ballad",
+                            "value": {
+                                "genre": "pop",
+                                "mood": "sad",
+                                "key": "Am",
+                                "bpm": 80,
+                                "duration": 60,
+                            },
+                        },
+                        "energetic_rock": {
+                            "summary": "Energetic Rock",
+                            "value": {
+                                "genre": "rock",
+                                "mood": "energetic",
+                                "key": "E",
+                                "bpm": 140,
+                                "duration": 45,
+                            },
+                        },
+                        "calm_jazz": {
+                            "summary": "Calm Jazz",
+                            "value": {
+                                "genre": "jazz",
+                                "mood": "calm",
+                                "key": "F",
+                                "bpm": 100,
+                                "duration": 90,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_by_genre(request: GenerateByGenreRequest):
     """
     Generate music for specific genre with mood and key control.
@@ -182,7 +274,52 @@ async def generate_by_genre(request: GenerateByGenreRequest):
         )
 
 
-@router.post("/generate/instrumental", response_model=MusicGenerationResponse)
+@router.post(
+    "/generate/instrumental",
+    response_model=MusicGenerationResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "classical_trio": {
+                            "summary": "Classical Trio",
+                            "value": {
+                                "instruments": ["piano", "violin", "cello"],
+                                "genre": "classical",
+                                "duration": 60,
+                            },
+                        },
+                        "rock_band": {
+                            "summary": "Rock Band",
+                            "value": {
+                                "instruments": ["guitar", "bass", "drums"],
+                                "genre": "rock",
+                                "duration": 45,
+                            },
+                        },
+                        "jazz_combo": {
+                            "summary": "Jazz Combo",
+                            "value": {
+                                "instruments": ["piano", "saxophone", "bass", "drums"],
+                                "genre": "jazz",
+                                "duration": 90,
+                            },
+                        },
+                        "electronic_synth": {
+                            "summary": "Electronic Synth",
+                            "value": {
+                                "instruments": ["synth", "drums"],
+                                "genre": "electronic",
+                                "duration": 60,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_instrumental(request: GenerateInstrumentalRequest):
     """
     Generate instrumental music with specific instruments.
@@ -221,7 +358,68 @@ async def generate_instrumental(request: GenerateInstrumentalRequest):
         )
 
 
-@router.post("/generate/structured", response_model=MusicGenerationResponse)
+@router.post(
+    "/generate/structured",
+    response_model=MusicGenerationResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "standard_song": {
+                            "summary": "Standard Song Structure",
+                            "value": {
+                                "sections": [
+                                    ["intro", 8],
+                                    ["verse", 16],
+                                    ["chorus", 16],
+                                    ["verse", 16],
+                                    ["chorus", 16],
+                                    ["outro", 8],
+                                ],
+                                "genre": "pop",
+                                "key": "C",
+                                "bpm": 120,
+                            },
+                        },
+                        "simple_structure": {
+                            "summary": "Simple Structure",
+                            "value": {
+                                "sections": [
+                                    ["intro", 4],
+                                    ["verse", 8],
+                                    ["chorus", 8],
+                                ],
+                                "genre": "pop",
+                                "key": None,
+                                "bpm": None,
+                            },
+                        },
+                        "complex_structure": {
+                            "summary": "Complex Structure",
+                            "value": {
+                                "sections": [
+                                    ["intro", 8],
+                                    ["verse", 16],
+                                    ["chorus", 16],
+                                    ["bridge", 8],
+                                    ["verse", 16],
+                                    ["chorus", 16],
+                                    ["solo", 8],
+                                    ["chorus", 16],
+                                    ["outro", 8],
+                                ],
+                                "genre": "rock",
+                                "key": "E",
+                                "bpm": 140,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_structured_music(request: StructuredMusicRequest):
     """
     Generate structured music (intro, verse, chorus, etc.).
@@ -268,7 +466,66 @@ async def generate_structured_music(request: StructuredMusicRequest):
         )
 
 
-@router.post("/generate/with-melody")
+@router.post(
+    "/generate/with-melody",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "melody_file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "Audio file containing melody",
+                            },
+                            "genre": {
+                                "type": "string",
+                                "description": "Music genre",
+                                "default": "pop",
+                            },
+                            "duration": {
+                                "type": "integer",
+                                "description": "Duration in seconds",
+                                "default": 30,
+                                "minimum": 5,
+                                "maximum": 300,
+                            },
+                        },
+                        "required": ["melody_file"],
+                    },
+                    "examples": {
+                        "pop_melody": {
+                            "summary": "Pop Genre",
+                            "value": {
+                                "melody_file": "(binary)",
+                                "genre": "pop",
+                                "duration": 30,
+                            },
+                        },
+                        "rock_melody": {
+                            "summary": "Rock Genre",
+                            "value": {
+                                "melody_file": "(binary)",
+                                "genre": "rock",
+                                "duration": 45,
+                            },
+                        },
+                        "jazz_melody": {
+                            "summary": "Jazz Genre",
+                            "value": {
+                                "melody_file": "(binary)",
+                                "genre": "jazz",
+                                "duration": 60,
+                            },
+                        },
+                    },
+                }
+            }
+        }
+    },
+)
 async def generate_with_melody(
     melody_file: UploadFile = File(...), genre: str = "pop", duration: int = 30
 ):
@@ -317,7 +574,52 @@ async def generate_with_melody(
         melody_path.unlink(missing_ok=True)
 
 
-@router.post("/chords/generate", response_model=ChordProgressionResponse)
+@router.post(
+    "/chords/generate",
+    response_model=ChordProgressionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_progression": {
+                            "summary": "Pop Chord Progression",
+                            "value": {
+                                "key": "C",
+                                "genre": "pop",
+                                "num_chords": 4,
+                            },
+                        },
+                        "jazz_progression": {
+                            "summary": "Jazz Chord Progression",
+                            "value": {
+                                "key": "Am",
+                                "genre": "jazz",
+                                "num_chords": 8,
+                            },
+                        },
+                        "rock_progression": {
+                            "summary": "Rock Chord Progression",
+                            "value": {
+                                "key": "E",
+                                "genre": "rock",
+                                "num_chords": 4,
+                            },
+                        },
+                        "long_progression": {
+                            "summary": "Long Progression",
+                            "value": {
+                                "key": "G",
+                                "genre": None,
+                                "num_chords": 12,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_chord_progression(request: ChordProgressionRequest):
     """
     Generate chord progression for given key and genre.
@@ -362,7 +664,59 @@ async def generate_chord_progression(request: ChordProgressionRequest):
         )
 
 
-@router.post("/melody/generate")
+@router.post(
+    "/melody/generate",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_melody": {
+                            "summary": "Pop Melody",
+                            "value": {
+                                "key": "C",
+                                "num_notes": 16,
+                                "duration": 8,
+                                "genre": "pop",
+                                "pentatonic": False,
+                            },
+                        },
+                        "pentatonic_simple": {
+                            "summary": "Pentatonic Scale",
+                            "value": {
+                                "key": "Am",
+                                "num_notes": 8,
+                                "duration": 4,
+                                "genre": None,
+                                "pentatonic": True,
+                            },
+                        },
+                        "jazz_melody": {
+                            "summary": "Jazz Melody",
+                            "value": {
+                                "key": "F",
+                                "num_notes": 32,
+                                "duration": 16,
+                                "genre": "jazz",
+                                "pentatonic": False,
+                            },
+                        },
+                        "long_melody": {
+                            "summary": "Long Melody",
+                            "value": {
+                                "key": "G",
+                                "num_notes": 64,
+                                "duration": 30,
+                                "genre": "classical",
+                                "pentatonic": False,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_melody(request: MelodyGenerationRequest):
     """
     Generate MIDI melody file.
@@ -426,7 +780,25 @@ async def list_moods():
     return {"moods": [mood.value for mood in MusicMood], "count": len(MusicMood)}
 
 
-@router.get("/genres/{genre}/info")
+@router.get(
+    "/genres/{genre}/info",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "genre",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "pop": {"summary": "Pop Genre", "value": "pop"},
+                    "rock": {"summary": "Rock Genre", "value": "rock"},
+                    "jazz": {"summary": "Jazz Genre", "value": "jazz"},
+                    "electronic": {"summary": "Electronic Genre", "value": "electronic"},
+                },
+            }
+        ]
+    },
+)
 async def get_genre_info(genre: str):
     """
     Get information about a specific genre.

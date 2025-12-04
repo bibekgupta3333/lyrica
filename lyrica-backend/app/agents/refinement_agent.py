@@ -160,7 +160,8 @@ ISSUE: [another issue]
 
 Analyze now:"""
 
-        response = await asyncio.to_thread(self.llm.generate, prompt)
+        llm_response = await self.llm.generate(prompt)
+        response = llm_response.content
 
         # Parse issues from response
         issues = []
@@ -237,7 +238,8 @@ Analyze now:"""
 
 Refined lyrics:"""
 
-        response = await asyncio.to_thread(self.llm.generate, prompt)
+        llm_response = await self.llm.generate(prompt)
+        response = llm_response.content
 
         return response.strip()
 

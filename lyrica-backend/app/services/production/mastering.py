@@ -57,7 +57,7 @@ class SongMasteringService:
             logger.info(f"Using {genre} mastering preset: {target_loudness} LUFS")
 
         # Apply mastering chain
-        mastered_path = self.mastering_service.apply_mastering_chain(
+        mastered_path = self.mastering_service.master_audio(
             audio_path=song_path,
             output_path=output_path,
             target_loudness=target_loudness,

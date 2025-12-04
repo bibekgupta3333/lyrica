@@ -625,8 +625,36 @@ pip install sentence-transformers
 
 ---
 
+## Data Ingestion for RAG
+
+The RAG system requires data to be ingested and indexed in ChromaDB. See the comprehensive guide for details:
+
+📖 **[Data Ingestion Guide](./DATA_INGESTION_GUIDE.md)** - Complete documentation on populating the system
+
+**Quick Start:**
+```bash
+# Run full ingestion pipeline
+cd lyrica-backend
+python scripts/ingest_data.py --all-100
+
+# Expected results:
+# - 2,324+ lyrics ingested
+# - 2,343+ embeddings created
+# - RAG search operational
+```
+
+**What Gets Ingested:**
+1. **Lyrics** - From Hugging Face datasets (merve/poetry)
+2. **Music Tracks** - Synthetic generation from genre templates
+3. **Songs** - Created from existing lyrics
+4. **Voice Profiles** - Synthetic combinations
+5. **ChromaDB Embeddings** - All lyrics chunked and indexed
+
+---
+
 ## References
 
+- **Data Ingestion Guide**: [DATA_INGESTION_GUIDE.md](./DATA_INGESTION_GUIDE.md)
 - **Sentence Transformers**: https://www.sbert.net/
 - **ChromaDB Docs**: https://docs.trychroma.com/
 - **LangChain RAG**: https://python.langchain.com/docs/use_cases/question_answering/
@@ -635,5 +663,5 @@ pip install sentence-transformers
 ---
 
 **Implementation Status**: ✅ **COMPLETE**
-**Last Updated**: November 27, 2025
+**Last Updated**: December 1, 2025
 **Author**: Lyrica Development Team

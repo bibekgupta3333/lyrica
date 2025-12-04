@@ -23,12 +23,11 @@ from app.services.audio import (
     get_audio_converter,
     get_audio_mastering,
     get_audio_metadata,
-    get_audio_mixer,
     get_audio_storage,
     get_audio_waveform,
 )
 
-router = APIRouter()
+router = APIRouter(tags=["Audio Processing"])
 
 
 # ============================================================================
@@ -39,45 +38,139 @@ router = APIRouter()
 class AudioUploadResponse(BaseModel):
     """Response after audio upload."""
 
-    filename: str
-    path: str
-    size_mb: float
-    format: str
+    filename: str = Field(..., description="Name of the uploaded file")
+    path: str = Field(..., description="Full path to the saved file")
+    size_mb: float = Field(..., description="File size in megabytes", ge=0.0)
+    format: str = Field(..., description="Audio format (wav, mp3, ogg, etc.)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "filename": "my_song.wav",
+                "path": "audio_files/songs/my_song.wav",
+                "size_mb": 5.2,
+                "format": "wav",
+            }
+        }
 
 
 class AudioMetadataResponse(BaseModel):
     """Audio metadata response."""
 
-    filename: str
-    format: str
-    duration_seconds: float
-    sample_rate: int
-    channels: int
-    file_size_mb: float
-    audio_features: Optional[dict] = None
+    filename: str = Field(..., description="Audio filename")
+    format: str = Field(..., description="Audio format (wav, mp3, etc.)")
+    duration_seconds: float = Field(..., description="Duration in seconds", ge=0.0)
+    sample_rate: int = Field(..., description="Sample rate in Hz", ge=8000)
+    channels: int = Field(..., description="Number of audio channels (1=mono, 2=stereo)", ge=1)
+    file_size_mb: float = Field(..., description="File size in megabytes", ge=0.0)
+    audio_features: Optional[dict] = Field(
+        None, description="Additional audio features (BPM, key, etc.)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "filename": "my_song.wav",
+                "format": "wav",
+                "duration_seconds": 180.5,
+                "sample_rate": 44100,
+                "channels": 2,
+                "file_size_mb": 31.2,
+                "audio_features": {"bpm": 120, "key": "C major"},
+            }
+        }
 
 
 class ConversionRequest(BaseModel):
     """Audio conversion request."""
 
-    target_format: AudioFormat
-    quality: AudioQuality = AudioQuality.HIGH
+    target_format: AudioFormat = Field(
+        ..., description="Target audio format (mp3, wav, ogg, flac, m4a)"
+    )
+    quality: AudioQuality = Field(
+        default=AudioQuality.HIGH,
+        description="Audio quality preset (low, medium, high, lossless)",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "target_format": "mp3",
+                    "quality": "high",
+                },
+                {
+                    "target_format": "wav",
+                    "quality": "lossless",
+                },
+                {
+                    "target_format": "ogg",
+                    "quality": "medium",
+                },
+            ]
+        }
 
 
 class MixRequest(BaseModel):
     """Audio mixing request."""
 
-    track_ids: List[str] = Field(..., min_items=2)
-    volumes: Optional[List[float]] = None
-    output_filename: str
+    track_ids: List[str] = Field(
+        ..., min_items=2, description="List of audio track IDs to mix (minimum 2 tracks)"
+    )
+    volumes: Optional[List[float]] = Field(
+        None, description="Volume levels for each track (0.0-1.0), defaults to 1.0 for all"
+    )
+    output_filename: str = Field(..., description="Output filename for the mixed audio")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "track_ids": ["vocals.wav", "music.wav"],
+                "volumes": [1.0, 0.8],
+                "output_filename": "mixed_song.wav",
+            }
+        }
 
 
 class MasteringRequest(BaseModel):
     """Audio mastering request."""
 
-    target_loudness: float = Field(default=-14.0, ge=-30.0, le=0.0)
-    peak_limit: float = Field(default=-1.0, ge=-6.0, le=0.0)
-    apply_compression: bool = True
+    target_loudness: float = Field(
+        default=-14.0,
+        ge=-30.0,
+        le=0.0,
+        description="Target loudness in LUFS (typical: -14.0 for streaming, -12.0 for radio)",
+    )
+    peak_limit: float = Field(
+        default=-1.0,
+        ge=-6.0,
+        le=0.0,
+        description="Peak limit in dB (prevents clipping, typical: -1.0 to -0.5)",
+    )
+    apply_compression: bool = Field(
+        default=True, description="Whether to apply dynamic range compression"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "examples": [
+                {
+                    "target_loudness": -14.0,
+                    "peak_limit": -1.0,
+                    "apply_compression": True,
+                },
+                {
+                    "target_loudness": -12.0,
+                    "peak_limit": -0.5,
+                    "apply_compression": True,
+                },
+                {
+                    "target_loudness": -16.0,
+                    "peak_limit": -2.0,
+                    "apply_compression": False,
+                },
+            ]
+        }
 
 
 # ============================================================================
@@ -85,7 +178,60 @@ class MasteringRequest(BaseModel):
 # ============================================================================
 
 
-@router.post("/upload", response_model=AudioUploadResponse)
+@router.post(
+    "/upload",
+    response_model=AudioUploadResponse,
+    summary="Upload audio file",
+    description="Upload an audio file to the server for processing",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "Audio file (WAV, MP3, OGG, FLAC, etc.)",
+                            },
+                            "category": {
+                                "type": "string",
+                                "description": "Storage category",
+                                "default": "songs",
+                                "enum": ["songs", "voices", "music", "temp"],
+                            },
+                        },
+                        "required": ["file"],
+                    },
+                    "examples": {
+                        "song_upload": {
+                            "summary": "Upload Song",
+                            "value": {
+                                "file": "(binary)",
+                                "category": "songs",
+                            },
+                        },
+                        "voice_upload": {
+                            "summary": "Upload Voice",
+                            "value": {
+                                "file": "(binary)",
+                                "category": "voices",
+                            },
+                        },
+                        "music_upload": {
+                            "summary": "Upload Music",
+                            "value": {
+                                "file": "(binary)",
+                                "category": "music",
+                            },
+                        },
+                    },
+                }
+            }
+        }
+    },
+)
 async def upload_audio(
     file: UploadFile = File(...),
     category: str = Form(default="songs"),
@@ -128,7 +274,41 @@ async def upload_audio(
         )
 
 
-@router.get("/download/{filename}")
+@router.get(
+    "/download/{filename}",
+    summary="Download audio file",
+    description="Download an audio file from the server",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_file": {
+                        "summary": "Song File",
+                        "value": "my_song.wav",
+                    },
+                    "voice_file": {
+                        "summary": "Voice File",
+                        "value": "vocals.mp3",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+                "examples": {
+                    "songs": {"summary": "Songs Category", "value": "songs"},
+                    "voices": {"summary": "Voices Category", "value": "voices"},
+                },
+            },
+        ]
+    },
+)
 async def download_audio(filename: str, category: str = "songs"):
     """
     Download an audio file.
@@ -170,7 +350,42 @@ async def download_audio(filename: str, category: str = "songs"):
 # ============================================================================
 
 
-@router.get("/metadata/{filename}", response_model=AudioMetadataResponse)
+@router.get(
+    "/metadata/{filename}",
+    response_model=AudioMetadataResponse,
+    summary="Get audio metadata",
+    description="Extract and return metadata from an audio file",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_metadata": {
+                        "summary": "Song Metadata",
+                        "value": "my_song.wav",
+                    },
+                    "voice_metadata": {
+                        "summary": "Voice Metadata",
+                        "value": "vocals.mp3",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+                "examples": {
+                    "songs": {"summary": "Songs Category", "value": "songs"},
+                    "music": {"summary": "Music Category", "value": "music"},
+                },
+            },
+        ]
+    },
+)
 async def get_metadata(filename: str, category: str = "songs"):
     """
     Get audio file metadata.
@@ -212,7 +427,69 @@ async def get_metadata(filename: str, category: str = "songs"):
 # ============================================================================
 
 
-@router.post("/convert/{filename}")
+@router.post(
+    "/convert/{filename}",
+    summary="Convert audio format",
+    description="Convert an audio file to a different format (MP3, WAV, OGG, FLAC, M4A)",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "convert_song": {
+                        "summary": "Convert Song",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ],
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "to_mp3": {
+                            "summary": "Convert to MP3",
+                            "value": {
+                                "target_format": "mp3",
+                                "quality": "high",
+                            },
+                        },
+                        "to_wav": {
+                            "summary": "Convert to WAV",
+                            "value": {
+                                "target_format": "wav",
+                                "quality": "high",
+                            },
+                        },
+                        "to_ogg": {
+                            "summary": "Convert to OGG",
+                            "value": {
+                                "target_format": "ogg",
+                                "quality": "medium",
+                            },
+                        },
+                        "to_flac": {
+                            "summary": "Convert to FLAC",
+                            "value": {
+                                "target_format": "flac",
+                                "quality": "high",
+                            },
+                        },
+                    }
+                }
+            }
+        },
+    },
+)
 async def convert_audio(
     filename: str,
     conversion: ConversionRequest,
@@ -273,7 +550,33 @@ async def convert_audio(
 # ============================================================================
 
 
-@router.get("/waveform/{filename}")
+@router.get(
+    "/waveform/{filename}",
+    summary="Generate waveform image",
+    description="Generate a visual waveform image from an audio file",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_waveform": {
+                        "summary": "Song Waveform",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ]
+    },
+)
 async def generate_waveform(filename: str, category: str = "songs"):
     """
     Generate waveform image for audio file.
@@ -315,7 +618,44 @@ async def generate_waveform(filename: str, category: str = "songs"):
         )
 
 
-@router.get("/waveform-data/{filename}")
+@router.get(
+    "/waveform-data/{filename}",
+    summary="Get waveform data",
+    description="Get waveform data points for frontend visualization",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "song_data": {
+                        "summary": "Song Waveform Data",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+            {
+                "name": "samples",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 1000, "minimum": 100, "maximum": 10000},
+                "examples": {
+                    "low_res": {"summary": "Low Resolution", "value": 500},
+                    "default": {"summary": "Default", "value": 1000},
+                    "high_res": {"summary": "High Resolution", "value": 5000},
+                },
+            },
+        ]
+    },
+)
 async def get_waveform_data(filename: str, category: str = "songs", samples: int = 1000):
     """
     Get waveform data points (for frontend visualization).
@@ -358,7 +698,65 @@ async def get_waveform_data(filename: str, category: str = "songs", samples: int
 # ============================================================================
 
 
-@router.post("/master/{filename}")
+@router.post(
+    "/master/{filename}",
+    summary="Master audio file",
+    description="Apply professional mastering (loudness normalization, compression, peak limiting)",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "master_song": {
+                        "summary": "Master Song",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ],
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "standard_mastering": {
+                            "summary": "Standard Mastering",
+                            "value": {
+                                "target_loudness": -14.0,
+                                "peak_limit": -1.0,
+                                "apply_compression": True,
+                            },
+                        },
+                        "loud_mastering": {
+                            "summary": "Loud Mastering",
+                            "value": {
+                                "target_loudness": -12.0,
+                                "peak_limit": -0.5,
+                                "apply_compression": True,
+                            },
+                        },
+                        "gentle_mastering": {
+                            "summary": "Gentle Mastering",
+                            "value": {
+                                "target_loudness": -16.0,
+                                "peak_limit": -2.0,
+                                "apply_compression": False,
+                            },
+                        },
+                    }
+                }
+            }
+        },
+    },
+)
 async def master_audio(
     filename: str,
     mastering: MasteringRequest,
@@ -415,7 +813,33 @@ async def master_audio(
         )
 
 
-@router.get("/analyze/{filename}")
+@router.get(
+    "/analyze/{filename}",
+    summary="Analyze audio",
+    description="Analyze audio loudness and quality metrics",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "filename",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+                "examples": {
+                    "analyze_song": {
+                        "summary": "Analyze Song",
+                        "value": "my_song.wav",
+                    },
+                },
+            },
+            {
+                "name": "category",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "songs"},
+            },
+        ]
+    },
+)
 async def analyze_audio(filename: str, category: str = "songs"):
     """
     Analyze audio loudness and quality metrics.
@@ -457,7 +881,11 @@ async def analyze_audio(filename: str, category: str = "songs"):
 # ============================================================================
 
 
-@router.get("/stats")
+@router.get(
+    "/stats",
+    summary="Get storage statistics",
+    description="Get audio storage statistics (file counts, sizes, etc.)",
+)
 async def get_storage_stats():
     """
     Get audio storage statistics.

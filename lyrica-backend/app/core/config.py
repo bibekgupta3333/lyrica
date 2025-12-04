@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # Ollama Configuration
     ollama_base_url: str = Field(default="http://localhost:11434", description="Ollama base URL")
-    ollama_model: str = Field(default="llama3", description="Ollama model name")
+    ollama_model: str = Field(default="qwen3:0.6b", description="Ollama model name")
     ollama_timeout: int = Field(default=300, description="Ollama request timeout (seconds)")
     ollama_temperature: float = Field(default=0.7, description="LLM temperature")
     ollama_max_tokens: int = Field(default=2048, description="Max tokens to generate")
@@ -116,8 +116,10 @@ class Settings(BaseSettings):
     cors_allow_headers: List[str] = Field(default=["*"], description="Allowed headers")
 
     # Rate Limiting
-    rate_limit_per_minute: int = Field(default=60, description="Requests per minute")
-    rate_limit_per_day: int = Field(default=1000, description="Requests per day")
+    rate_limit_enabled: bool = Field(default=True, description="Enable rate limiting middleware")
+    rate_limit_per_minute: int = Field(default=60, description="Requests per minute per client")
+    rate_limit_per_day: int = Field(default=1000, description="Requests per day per client")
+    rate_limit_window_seconds: int = Field(default=60, description="Rate limit window in seconds")
 
     # Logging Configuration
     log_level: str = Field(default="INFO", description="Log level")
@@ -128,6 +130,9 @@ class Settings(BaseSettings):
     max_agent_iterations: int = Field(default=3, description="Max agent refinement iterations")
     agent_timeout: int = Field(default=300, description="Agent timeout (seconds)")
     enable_streaming: bool = Field(default=True, description="Enable streaming responses")
+    quality_threshold: float = Field(
+        default=6.5, description="Minimum quality score threshold for song generation (0-10)"
+    )
 
     # Feature Flags
     enable_metrics: bool = Field(default=True, description="Enable Prometheus metrics")

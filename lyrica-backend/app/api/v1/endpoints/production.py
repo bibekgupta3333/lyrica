@@ -36,7 +36,60 @@ from app.services.voice import get_voice_synthesis
 router = APIRouter()
 
 
-@router.post("/assemble", response_model=SongProductionResponse)
+@router.post(
+    "/assemble",
+    response_model=SongProductionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "balanced_mix": {
+                            "summary": "Balanced Mix",
+                            "value": {
+                                "vocals_path": "audio_files/vocals/my_vocals.wav",
+                                "music_path": "audio_files/music/my_music.wav",
+                                "vocals_volume_db": 0.0,
+                                "music_volume_db": -5.0,
+                                "crossfade_ms": 500,
+                            },
+                        },
+                        "vocals_forward": {
+                            "summary": "Vocals Forward",
+                            "value": {
+                                "vocals_path": "audio_files/vocals/vocals.wav",
+                                "music_path": "audio_files/music/music.wav",
+                                "vocals_volume_db": 2.0,
+                                "music_volume_db": -8.0,
+                                "crossfade_ms": 300,
+                            },
+                        },
+                        "music_forward": {
+                            "summary": "Music Forward",
+                            "value": {
+                                "vocals_path": "audio_files/vocals/vocals.wav",
+                                "music_path": "audio_files/music/music.wav",
+                                "vocals_volume_db": -3.0,
+                                "music_volume_db": 0.0,
+                                "crossfade_ms": 700,
+                            },
+                        },
+                        "no_crossfade": {
+                            "summary": "No Crossfade",
+                            "value": {
+                                "vocals_path": "audio_files/vocals/vocals.wav",
+                                "music_path": "audio_files/music/music.wav",
+                                "vocals_volume_db": 0.0,
+                                "music_volume_db": -5.0,
+                                "crossfade_ms": 0,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def assemble_song(request: SongAssemblyRequest):
     """
     Assemble complete song by mixing vocals with instrumental music.
@@ -118,7 +171,121 @@ async def assemble_song(request: SongAssemblyRequest):
         )
 
 
-@router.post("/structured", response_model=SongProductionResponse)
+@router.post(
+    "/structured",
+    response_model=SongProductionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "standard_structure": {
+                            "summary": "Standard Song Structure",
+                            "value": {
+                                "sections": [
+                                    {
+                                        "type": "intro",
+                                        "music_path": "audio_files/music/intro.wav",
+                                        "duration": 8,
+                                    },
+                                    {
+                                        "type": "verse",
+                                        "vocals_path": "audio_files/vocals/verse1.wav",
+                                        "music_path": "audio_files/music/verse.wav",
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "type": "chorus",
+                                        "vocals_path": "audio_files/vocals/chorus.wav",
+                                        "music_path": "audio_files/music/chorus.wav",
+                                        "duration": 16,
+                                    },
+                                ]
+                            },
+                        },
+                        "full_structure": {
+                            "summary": "Full Song Structure",
+                            "value": {
+                                "sections": [
+                                    {
+                                        "type": "intro",
+                                        "music_path": "audio_files/music/intro.wav",
+                                        "duration": 8,
+                                    },
+                                    {
+                                        "type": "verse",
+                                        "vocals_path": "audio_files/vocals/verse1.wav",
+                                        "music_path": "audio_files/music/verse.wav",
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "type": "chorus",
+                                        "vocals_path": "audio_files/vocals/chorus.wav",
+                                        "music_path": "audio_files/music/chorus.wav",
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "type": "verse",
+                                        "vocals_path": "audio_files/vocals/verse2.wav",
+                                        "music_path": "audio_files/music/verse.wav",
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "type": "chorus",
+                                        "vocals_path": "audio_files/vocals/chorus.wav",
+                                        "music_path": "audio_files/music/chorus.wav",
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "type": "bridge",
+                                        "vocals_path": "audio_files/vocals/bridge.wav",
+                                        "music_path": "audio_files/music/bridge.wav",
+                                        "duration": 8,
+                                    },
+                                    {
+                                        "type": "chorus",
+                                        "vocals_path": "audio_files/vocals/chorus.wav",
+                                        "music_path": "audio_files/music/chorus.wav",
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "type": "outro",
+                                        "music_path": "audio_files/music/outro.wav",
+                                        "duration": 8,
+                                    },
+                                ]
+                            },
+                        },
+                        "simple_structure": {
+                            "summary": "Simple Structure",
+                            "value": {
+                                "sections": [
+                                    {
+                                        "type": "intro",
+                                        "music_path": "audio_files/music/intro.wav",
+                                        "duration": 4,
+                                    },
+                                    {
+                                        "type": "verse",
+                                        "vocals_path": "audio_files/vocals/verse.wav",
+                                        "music_path": "audio_files/music/verse.wav",
+                                        "duration": 8,
+                                    },
+                                    {
+                                        "type": "chorus",
+                                        "vocals_path": "audio_files/vocals/chorus.wav",
+                                        "music_path": "audio_files/music/chorus.wav",
+                                        "duration": 8,
+                                    },
+                                ]
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def create_structured_song(request: StructuredSongRequest):
     """
     Create song with multi-section structure.
@@ -215,7 +382,101 @@ async def create_structured_song(request: StructuredSongRequest):
         )
 
 
-@router.post("/sync-lyrics", response_model=SongProductionResponse)
+@router.post(
+    "/sync-lyrics",
+    response_model=SongProductionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "simple_sync": {
+                            "summary": "Simple Sync",
+                            "value": {
+                                "lyrics_sections": [
+                                    {
+                                        "text": "Verse 1 lyrics here...",
+                                        "start_time": 0,
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "text": "Chorus lyrics here...",
+                                        "start_time": 16,
+                                        "duration": 16,
+                                    },
+                                ],
+                                "music_path": "audio_files/music/song.wav",
+                            },
+                        },
+                        "full_song_sync": {
+                            "summary": "Full Song Sync",
+                            "value": {
+                                "lyrics_sections": [
+                                    {
+                                        "text": "Intro music playing...",
+                                        "start_time": 0,
+                                        "duration": 8,
+                                    },
+                                    {
+                                        "text": "Verse 1: Walking down the street",
+                                        "start_time": 8,
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "text": "Chorus: This is our song",
+                                        "start_time": 24,
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "text": "Verse 2: Music fills the air",
+                                        "start_time": 40,
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "text": "Chorus: This is our song",
+                                        "start_time": 56,
+                                        "duration": 16,
+                                    },
+                                    {
+                                        "text": "Bridge: Time moves on",
+                                        "start_time": 72,
+                                        "duration": 8,
+                                    },
+                                    {
+                                        "text": "Chorus: This is our song",
+                                        "start_time": 80,
+                                        "duration": 16,
+                                    },
+                                ],
+                                "music_path": "audio_files/music/full_song.wav",
+                            },
+                        },
+                        "ballad_sync": {
+                            "summary": "Ballad Sync",
+                            "value": {
+                                "lyrics_sections": [
+                                    {
+                                        "text": "In the quiet of the night",
+                                        "start_time": 0,
+                                        "duration": 8,
+                                    },
+                                    {"text": "I think of you", "start_time": 8, "duration": 8},
+                                    {
+                                        "text": "All the moments we shared",
+                                        "start_time": 16,
+                                        "duration": 8,
+                                    },
+                                    {"text": "So few, so true", "start_time": 24, "duration": 8},
+                                ],
+                                "music_path": "audio_files/music/ballad.wav",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def sync_lyrics_to_music(request: LyricsSyncRequest):
     """
     Synchronize lyrics sections with music timing.
@@ -295,7 +556,52 @@ async def sync_lyrics_to_music(request: LyricsSyncRequest):
         )
 
 
-@router.post("/master", response_model=SongProductionResponse)
+@router.post(
+    "/master",
+    response_model=SongProductionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_mastering": {
+                            "summary": "Pop Mastering",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "target_loudness": -14.0,
+                                "genre": "pop",
+                            },
+                        },
+                        "rock_mastering": {
+                            "summary": "Rock Mastering",
+                            "value": {
+                                "song_path": "audio_files/songs/rock_song.wav",
+                                "target_loudness": -12.0,
+                                "genre": "rock",
+                            },
+                        },
+                        "jazz_mastering": {
+                            "summary": "Jazz Mastering",
+                            "value": {
+                                "song_path": "audio_files/songs/jazz_song.wav",
+                                "target_loudness": -16.0,
+                                "genre": "jazz",
+                            },
+                        },
+                        "generic_mastering": {
+                            "summary": "Generic Mastering",
+                            "value": {
+                                "song_path": "audio_files/songs/song.wav",
+                                "target_loudness": -14.0,
+                                "genre": None,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def master_song(request: SongMasteringRequest):
     """
     Apply final mastering to song.
@@ -363,7 +669,41 @@ async def master_song(request: SongMasteringRequest):
         )
 
 
-@router.post("/preview", response_model=SongProductionResponse)
+@router.post(
+    "/preview",
+    response_model=SongProductionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "standard_preview": {
+                            "summary": "Standard Preview (30s)",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "preview_duration": 30,
+                            },
+                        },
+                        "short_preview": {
+                            "summary": "Short Preview (15s)",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "preview_duration": 15,
+                            },
+                        },
+                        "long_preview": {
+                            "summary": "Long Preview (60s)",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "preview_duration": 60,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def create_song_preview(request: SongPreviewRequest):
     """
     Create preview/sample of song (typically 30 seconds).
@@ -429,7 +769,48 @@ async def create_song_preview(request: SongPreviewRequest):
         )
 
 
-@router.post("/export", response_model=SongProductionResponse)
+@router.post(
+    "/export",
+    response_model=SongProductionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "all_formats": {
+                            "summary": "All Formats",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "formats": ["mp3", "wav", "ogg", "flac", "m4a"],
+                            },
+                        },
+                        "web_formats": {
+                            "summary": "Web Formats",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "formats": ["mp3", "ogg"],
+                            },
+                        },
+                        "lossless_formats": {
+                            "summary": "Lossless Formats",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "formats": ["wav", "flac"],
+                            },
+                        },
+                        "single_format": {
+                            "summary": "Single Format (MP3)",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "formats": ["mp3"],
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def export_multi_format(request: MultiFormatExportRequest):
     """
     Export song in multiple formats (MP3, WAV, OGG, FLAC, M4A).
@@ -496,7 +877,41 @@ async def export_multi_format(request: MultiFormatExportRequest):
         )
 
 
-@router.post("/radio-edit", response_model=SongProductionResponse)
+@router.post(
+    "/radio-edit",
+    response_model=SongProductionResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "standard_radio_edit": {
+                            "summary": "Standard Radio Edit (3 min)",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "target_duration": 180,
+                            },
+                        },
+                        "short_radio_edit": {
+                            "summary": "Short Radio Edit (2 min)",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "target_duration": 120,
+                            },
+                        },
+                        "extended_radio_edit": {
+                            "summary": "Extended Radio Edit (4 min)",
+                            "value": {
+                                "song_path": "audio_files/songs/my_song.wav",
+                                "target_duration": 240,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def create_radio_edit(request: RadioEditRequest):
     """
     Create radio edit version (typically 3 minutes).
@@ -562,7 +977,64 @@ async def create_radio_edit(request: RadioEditRequest):
         )
 
 
-@router.post("/generate-complete", response_model=CompleteSongResponse)
+@router.post(
+    "/generate-complete",
+    response_model=CompleteSongResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_song": {
+                            "summary": "Pop Song",
+                            "value": {
+                                "lyrics_text": "[Verse 1]\nWalking down the street\nFeeling the beat\n\n[Chorus]\nDancing in the moonlight\nEverything feels right\n\n[Verse 2]\nMusic fills the air\nNo time for a care\n\n[Chorus]\nDancing in the moonlight\nEverything feels right",
+                                "genre": "pop",
+                                "bpm": 120,
+                                "key": "C major",
+                                "voice_profile": "female_singer_1",
+                                "duration": 180,
+                            },
+                        },
+                        "rock_song": {
+                            "summary": "Rock Song",
+                            "value": {
+                                "lyrics_text": "[Verse 1]\nTurn up the volume\nFeel the power\n\n[Chorus]\nRock and roll forever\nWe'll never surrender\n\n[Verse 2]\nGuitars are screaming\nDrums are beating\n\n[Chorus]\nRock and roll forever\nWe'll never surrender",
+                                "genre": "rock",
+                                "bpm": 140,
+                                "key": "E major",
+                                "voice_profile": "male_singer_1",
+                                "duration": 200,
+                            },
+                        },
+                        "ballad_song": {
+                            "summary": "Ballad Song",
+                            "value": {
+                                "lyrics_text": "[Verse]\nIn the quiet of the night\nI think of you\nAll the moments we shared\nSo few, so true\n\n[Bridge]\nTime moves on\nBut memories stay\nIn my heart forever\nThey'll never fade away",
+                                "genre": "pop",
+                                "bpm": 80,
+                                "key": "Am",
+                                "voice_profile": "female_singer_1",
+                                "duration": 150,
+                            },
+                        },
+                        "jazz_song": {
+                            "summary": "Jazz Song",
+                            "value": {
+                                "lyrics_text": "[Verse]\nSmooth jazz in the air\nSaxophone playing\nPiano keys dancing\nNight is calling\n\n[Bridge]\nFeel the rhythm\nMove with the beat\nJazz is flowing\nSo sweet",
+                                "genre": "jazz",
+                                "bpm": 100,
+                                "key": "F major",
+                                "voice_profile": "female_singer_1",
+                                "duration": 240,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_complete_song(request: CompleteSongRequest):
     """
     Generate complete song from lyrics (end-to-end pipeline).

@@ -5,7 +5,6 @@ This agent generates lyrics based on the song structure planned
 by the Planning Agent, optionally using RAG for context.
 """
 
-import asyncio
 from typing import Dict, List
 
 from loguru import logger
@@ -117,11 +116,10 @@ class GenerationAgent:
             # Search vector store
             results = await rag_service.retrieve(
                 query=search_query,
-                collection_name="lyrics",
                 n_results=5,
             )
 
-            return [doc["content"] for doc in results]
+            return [doc["text"] for doc in results]
 
         except Exception as e:
             logger.warning(f"Failed to retrieve RAG context: {str(e)}")
@@ -142,7 +140,8 @@ class GenerationAgent:
         prompt = self._build_section_prompt(section, state, rag_context)
 
         # Generate with LLM
-        response = await asyncio.to_thread(self.llm.generate, prompt)
+        llm_response = await self.llm.generate(prompt)
+        response = llm_response.content
 
         # Clean up response
         lyrics = self._clean_lyrics(response)
@@ -259,7 +258,8 @@ Generate a title that:
 
 Output ONLY the title, nothing else:"""
 
-        response = await asyncio.to_thread(self.llm.generate, prompt)
+        llm_response = await self.llm.generate(prompt)
+        response = llm_response.content
 
         # Clean up title
         title = response.strip().strip("\"'")

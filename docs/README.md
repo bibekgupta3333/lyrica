@@ -138,6 +138,17 @@ docs/
   - Embedding and chunking strategies
   - API reference and examples
 
+- **[DATA_INGESTION_GUIDE.md](./implementation/DATA_INGESTION_GUIDE.md)** 📥 ⭐ **NEW**
+  - Complete data ingestion pipeline (WBS 6.1-6.2)
+  - Lyrics, music tracks, songs, voice profiles
+  - Hugging Face dataset integration
+  - Synthetic data generation strategies
+  - ChromaDB population and embedding indexing
+  - 2,300+ lyrics, 150+ tracks, 130+ songs ingested
+  - Architecture diagrams and data flow
+  - Usage examples and troubleshooting
+  - Performance metrics (288 samples/second)
+
 - **[STREAMING_GUIDE.md](./implementation/STREAMING_GUIDE.md)** 📡
   - Real-time streaming responses
   - Server-Sent Events (SSE)

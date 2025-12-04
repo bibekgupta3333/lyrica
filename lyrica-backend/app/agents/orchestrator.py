@@ -276,16 +276,25 @@ class SongGenerationOrchestrator:
 
         try:
             # Execute workflow
-            final_state = await self.workflow.ainvoke(initial_state)
+            # LangGraph returns dict, convert to AgentState
+            final_state_dict = await self.workflow.ainvoke(initial_state)
+
+            # Convert dict to AgentState if needed
+            if isinstance(final_state_dict, dict):
+                final_state = AgentState(**final_state_dict)
+            else:
+                final_state = final_state_dict
 
             # Log completion
             if final_state.workflow_status == WorkflowStatus.COMPLETED:
                 duration = (
                     final_state.workflow_end_time - final_state.workflow_start_time
                 ).total_seconds()
+                score = (
+                    final_state.evaluation_score.overall if final_state.evaluation_score else 0.0
+                )
                 logger.info(
-                    f"Song generation completed in {duration:.2f}s. "
-                    f"Score: {final_state.evaluation_score.overall:.2f}/10"
+                    f"Song generation completed in {duration:.2f}s. " f"Score: {score:.2f}/10"
                 )
             else:
                 logger.warning(f"Song generation failed: {final_state.errors}")

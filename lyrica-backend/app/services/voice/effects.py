@@ -352,6 +352,174 @@ class VocalEffectsService:
         logger.success(f"Denoising applied: {output_path}")
         return output_path
 
+    def shift_pitch(
+        self,
+        audio_path: Path,
+        semitones: int,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        Shift pitch of audio (used internally by harmony method).
+
+        Args:
+            audio_path: Path to audio file
+            semitones: Number of semitones to shift (positive = higher)
+            output_path: Optional output path
+
+        Returns:
+            Path to pitch-shifted audio
+        """
+        from app.services.voice import get_pitch_control
+
+        pitch_service = get_pitch_control()
+        return pitch_service.shift_pitch(
+            audio_path=audio_path, semitones=semitones, output_path=output_path
+        )
+
+    def apply_effects(
+        self,
+        audio_path: Path,
+        effects: dict,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        Apply multiple vocal effects from a dictionary.
+
+        Args:
+            audio_path: Path to audio file
+            effects: Dictionary of effects to apply, e.g.:
+                {
+                    "reverb": 0.3,
+                    "echo": 0.15,
+                    "delay": 0.15,  # alias for echo
+                    "compression": 0.2,
+                    "eq": {"low": 2.0, "mid": 0.0, "high": -1.0},
+                    "harmony": [3, 7],  # intervals in semitones
+                    "denoise": 0.5,
+                }
+            output_path: Optional output path
+
+        Returns:
+            Path to audio with effects applied
+
+        Note:
+            Effects are applied in order: reverb -> echo/delay -> compression ->
+            EQ -> harmony -> denoise
+        """
+        logger.info(f"Applying vocal effects: {list(effects.keys())}")
+
+        import tempfile
+
+        # Use temporary file for intermediate processing
+        with tempfile.NamedTemporaryFile(
+            suffix=audio_path.suffix, delete=False, dir=audio_path.parent
+        ) as tmp_file:
+            temp_path = Path(tmp_file.name)
+
+        try:
+            current_path = audio_path
+            effects_applied = False
+
+            # Apply reverb
+            if "reverb" in effects:
+                reverb_level = effects["reverb"]
+                current_path = self.add_reverb(
+                    audio_path=current_path,
+                    room_size=reverb_level,
+                    wet_level=reverb_level,
+                    output_path=temp_path,
+                )
+                effects_applied = True
+
+            # Apply echo/delay
+            if "echo" in effects or "delay" in effects:
+                delay_level = effects.get("echo") or effects.get("delay", 0.15)
+                delay_ms = int(delay_level * 1000)  # Convert to milliseconds
+                current_path = self.add_echo(
+                    audio_path=current_path,
+                    delay_ms=delay_ms,
+                    decay=delay_level,
+                    output_path=temp_path,
+                )
+                effects_applied = True
+
+            # Apply compression
+            if "compression" in effects:
+                compression_level = effects["compression"]
+                threshold = -20.0 - (compression_level * 10)  # Lower threshold = more compression
+                current_path = self.apply_compression(
+                    audio_path=current_path,
+                    threshold=threshold,
+                    ratio=4.0,
+                    output_path=temp_path,
+                )
+                effects_applied = True
+
+            # Apply EQ
+            if "eq" in effects:
+                eq_params = effects["eq"]
+                if isinstance(eq_params, dict):
+                    current_path = self.apply_eq(
+                        audio_path=current_path,
+                        low_shelf_db=eq_params.get("low", 0.0),
+                        mid_db=eq_params.get("mid", 0.0),
+                        high_shelf_db=eq_params.get("high", 0.0),
+                        output_path=temp_path,
+                    )
+                    effects_applied = True
+
+            # Apply harmony
+            if "harmony" in effects:
+                harmony_intervals = effects["harmony"]
+                if isinstance(harmony_intervals, list):
+                    current_path = self.add_harmony(
+                        audio_path=current_path,
+                        harmony_intervals=harmony_intervals,
+                        output_path=temp_path,
+                    )
+                    effects_applied = True
+
+            # Apply denoise (usually last)
+            if "denoise" in effects:
+                denoise_strength = effects["denoise"]
+                current_path = self.denoise(
+                    audio_path=current_path,
+                    noise_reduction_strength=denoise_strength,
+                    output_path=temp_path,
+                )
+                effects_applied = True
+
+            # Copy final result to output path
+            if output_path:
+                import shutil
+
+                shutil.copy2(current_path, output_path)
+                final_path = output_path
+            else:
+                final_path = current_path
+
+            # Cleanup temp file if it was used
+            if effects_applied and temp_path.exists() and temp_path != final_path:
+                temp_path.unlink()
+
+            if not effects_applied:
+                logger.warning("No valid effects found in effects dictionary")
+                if output_path:
+                    import shutil
+
+                    shutil.copy2(audio_path, output_path)
+                    return output_path
+                return audio_path
+
+            logger.success(f"Vocal effects applied: {final_path}")
+            return final_path
+
+        except Exception as e:
+            # Cleanup on error
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+
 
 # Singleton instance
 _effects_service: Optional[VocalEffectsService] = None

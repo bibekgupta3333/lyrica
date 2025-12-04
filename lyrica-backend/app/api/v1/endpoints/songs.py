@@ -7,12 +7,16 @@ song generation workflow using LangGraph orchestration.
 
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import get_orchestrator
-from app.agents.state import AgentState, EvaluationScore, WorkflowStatus
+from app.agents.state import AgentState, WorkflowStatus
+from app.api.dependencies import get_current_user, get_db
+from app.core.config import settings
+from app.models.user import User
 
 router = APIRouter()
 
@@ -156,8 +160,74 @@ class SongGenerationResponse(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Generate a complete song with multi-agent system",
     description="Generate song lyrics using LangGraph orchestrated agents",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_love_song": {
+                            "summary": "Pop Love Song",
+                            "value": {
+                                "prompt": "Write a happy pop song about summer love",
+                                "genre": "pop",
+                                "mood": "happy",
+                                "theme": "summer romance",
+                                "length": "medium",
+                                "style_references": ["Taylor Swift", "Ed Sheeran"],
+                                "use_rag": True,
+                                "llm_provider": "ollama",
+                            },
+                        },
+                        "sad_ballad": {
+                            "summary": "Sad Ballad",
+                            "value": {
+                                "prompt": "Write a melancholic ballad about losing someone you love",
+                                "genre": "ballad",
+                                "mood": "melancholic",
+                                "theme": "lost love",
+                                "length": "long",
+                                "style_references": ["Adele", "Sam Smith"],
+                                "use_rag": True,
+                                "llm_provider": None,
+                            },
+                        },
+                        "hip_hop_motivational": {
+                            "summary": "Hip-Hop Motivational",
+                            "value": {
+                                "prompt": "Write an energetic hip-hop song about chasing dreams and never giving up",
+                                "genre": "hip-hop",
+                                "mood": "energetic",
+                                "theme": "motivation",
+                                "length": "medium",
+                                "style_references": ["Kendrick Lamar", "Drake"],
+                                "use_rag": True,
+                                "llm_provider": "ollama",
+                            },
+                        },
+                        "rock_anthem": {
+                            "summary": "Rock Anthem",
+                            "value": {
+                                "prompt": "Write a powerful rock anthem about freedom and breaking free",
+                                "genre": "rock",
+                                "mood": "powerful",
+                                "theme": "freedom",
+                                "length": "long",
+                                "style_references": ["Queen", "Led Zeppelin"],
+                                "use_rag": True,
+                                "llm_provider": None,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
-async def generate_song(request: SongGenerationRequest):
+async def generate_song(
+    request: SongGenerationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """
     Generate a complete song using the multi-agent workflow.
 
@@ -172,19 +242,22 @@ async def generate_song(request: SongGenerationRequest):
 
     Returns the complete song with evaluation scores and metadata.
     """
-    logger.info(f"Song generation request: {request.prompt[:50]}...")
+    logger.info(f"Song generation request from user {current_user.id}: {request.prompt[:50]}...")
 
     try:
-        # Get orchestrator
+        # Get orchestrator with configurable quality threshold from settings
         orchestrator = get_orchestrator(
             llm_provider=request.llm_provider,
-            quality_threshold=6.5,  # TODO: Make configurable
+            quality_threshold=settings.quality_threshold,
             max_refinement_iterations=2,
         )
 
+        # Convert UUID to int for agent state (use hash to ensure it's a valid int)
+        user_id_int = hash(str(current_user.id)) % (2**31)
+
         # Execute workflow
         result: AgentState = await orchestrator.generate_song(
-            user_id=1,  # TODO: Get from auth context
+            user_id=user_id_int,
             prompt=request.prompt,
             genre=request.genre,
             mood=request.mood,
@@ -200,9 +273,16 @@ async def generate_song(request: SongGenerationRequest):
         if result.workflow_end_time and result.workflow_start_time:
             duration = (result.workflow_end_time - result.workflow_start_time).total_seconds()
 
+        # Handle workflow_status (may be enum or string)
+        workflow_status_str = (
+            result.workflow_status.value
+            if hasattr(result.workflow_status, "value")
+            else str(result.workflow_status)
+        )
+
         # Convert to response
         response = SongGenerationResponse(
-            workflow_status=result.workflow_status.value,
+            workflow_status=workflow_status_str,
             workflow_duration=duration,
             title=result.title,
             final_lyrics=result.final_lyrics,
@@ -258,11 +338,13 @@ async def generate_song(request: SongGenerationRequest):
         )
 
         # Log result
-        if result.workflow_status == WorkflowStatus.COMPLETED:
-            logger.info(
-                f"Song generation successful in {duration:.2f}s. "
-                f"Score: {result.evaluation_score.overall:.2f}/10"
-            )
+        is_completed = (
+            workflow_status_str == WorkflowStatus.COMPLETED.value
+            or workflow_status_str == "completed"
+        )
+        if is_completed:
+            score = result.evaluation_score.overall if result.evaluation_score else 0.0
+            logger.info(f"Song generation successful in {duration:.2f}s. " f"Score: {score:.2f}/10")
         else:
             logger.warning(f"Song generation failed: {result.errors}")
 
@@ -367,7 +449,7 @@ async def get_workflow_info():
             ],
         },
         "configuration": {
-            "quality_threshold": 6.5,
+            "quality_threshold": settings.quality_threshold,
             "max_refinement_iterations": 2,
             "max_retries": 3,
         },

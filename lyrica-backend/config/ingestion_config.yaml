@@ -1,0 +1,458 @@
+# Data Ingestion Configuration for Lyrica
+# This file controls data preparation and ingestion for song generation
+
+# ============================================================================
+# Environment Settings
+# ============================================================================
+environment: "development"  # development | staging | production
+
+# ============================================================================
+# Database Settings
+# ============================================================================
+database:
+  # Auto-create admin user if no users exist
+  auto_create_admin: true
+
+  # Admin user configuration
+  admin_email: "admin@lyrica.com"
+  admin_username: "admin"
+  admin_password: "AdminLyrica2024!"  # Change in production
+  admin_full_name: "Lyrica Admin"
+
+# ============================================================================
+# Voice Profiles Configuration
+# ============================================================================
+voice_profiles:
+  # Automatically seed voice profiles on ingestion
+  auto_seed: true
+
+  # Source for voice profiles
+  # Options: "config" (from voice_config.py), "database" (existing only)
+  source: "config"
+
+  # Voice profiles to seed (matches voice_config.py)
+  profiles:
+    - id: "male_narrator_1"
+      name: "Male Narrator"
+      gender: "male"
+      age_range: "adult"
+      accent: "american"
+      language: "en"
+      engine: "bark"
+      engine_voice_id: "v2/en_speaker_6"
+      description: "Deep, clear male voice suitable for storytelling"
+      is_available: true
+      is_premium: false
+
+    - id: "female_singer_1"
+      name: "Female Singer"
+      gender: "female"
+      age_range: "young"
+      accent: "american"
+      language: "en"
+      engine: "bark"
+      engine_voice_id: "v2/en_speaker_9"
+      description: "Clear, melodic female voice perfect for singing"
+      is_available: true
+      is_premium: false
+
+    - id: "male_singer_1"
+      name: "Male Singer"
+      gender: "male"
+      age_range: "adult"
+      accent: "american"
+      language: "en"
+      engine: "bark"
+      engine_voice_id: "v2/en_speaker_3"
+      description: "Rich male voice with good range for singing"
+      is_available: true
+      is_premium: false
+
+    - id: "neutral_soft"
+      name: "Soft Narrator"
+      gender: "neutral"
+      age_range: "adult"
+      accent: "neutral"
+      language: "en"
+      engine: "bark"
+      engine_voice_id: "v2/en_speaker_1"
+      description: "Gentle, soothing voice"
+      is_available: true
+      is_premium: false
+
+# ============================================================================
+# Lyrics Ingestion Configuration
+# ============================================================================
+lyrics:
+  # Primary dataset to use
+  primary_dataset: "genius-lyrics"  # Short name - will map to correct HF path
+
+  # Fallback datasets (tried in order if primary fails)
+  fallback_datasets:
+    - "maharshipandya/spotify-tracks-dataset"
+    - "LeoCordoba/lyrics-dataset"
+
+  # Dataset-specific field mappings
+  field_mappings:
+    genius-lyrics:
+      title: "title"
+      content: "lyrics"
+      artist: "artist"
+      album: "album"
+      year: "year"
+
+    spotify-tracks:
+      title: "track_name"
+      content: "lyrics"
+      artist: "artists"
+      genre: "track_genre"
+
+    lyrics-dataset:
+      title: "title"
+      content: "lyrics"
+      artist: "artist"
+      year: "year"
+
+  # Quantity settings by environment
+  max_lyrics_dev: 1000
+  max_lyrics_staging: 5000
+  max_lyrics_production: 50000
+
+  # Quick mode (for testing)
+  max_lyrics_quick: 100
+
+  # Quality filters
+  min_length: 100  # Minimum characters
+  max_length: 10000  # Maximum characters
+  min_quality_score: 0.5  # Minimum validation score (0.0-1.0)
+
+  # Required fields validation
+  required_fields:
+    - "title"
+    - "content"
+
+  # Processing settings
+  batch_size: 10  # Number of lyrics to process at once
+  parallel_workers: 4  # Number of parallel processing workers
+
+  # Duplicate handling
+  check_duplicates: true
+  duplicate_threshold: 0.95  # Similarity threshold for duplicates
+
+# ============================================================================
+# Music Track Ingestion Configuration (P0)
+# ============================================================================
+music_tracks:
+  # Primary dataset
+  primary_dataset: "marsyas/gtzan"
+
+  # Quantity settings by environment
+  max_tracks_dev: 100
+  max_tracks_staging: 500
+  max_tracks_production: 5000
+
+  # Quick mode
+  max_tracks_quick: 50
+
+  # Processing settings
+  batch_size: 50
+
+# ============================================================================
+# Voice Profile Ingestion Configuration (P1)
+# ============================================================================
+voice_profiles_hf:
+  # Primary dataset
+  primary_dataset: "mozilla-foundation/common_voice_13_0"
+
+  # Language to ingest
+  language: "en"
+
+  # Quantity settings by environment
+  max_profiles_dev: 20
+  max_profiles_staging: 50
+  max_profiles_production: 200
+
+  # Quick mode
+  max_profiles_quick: 10
+
+  # Processing settings
+  batch_size: 2
+
+  # Enable/disable Hugging Face ingestion (vs config-based)
+  use_huggingface: false  # Set to true to use HF dataset
+
+# ============================================================================
+# Song Ingestion Configuration (P1)
+# ============================================================================
+songs:
+  # Primary dataset
+  primary_dataset: "asigalov61/Lyrics-MIDI-Dataset"
+
+  # Quantity settings by environment
+  max_songs_dev: 100
+  max_songs_staging: 500
+  max_songs_production: 5000
+
+  # Quick mode
+  max_songs_quick: 50
+
+  # Processing settings
+  batch_size: 50
+
+# ============================================================================
+# Document (RAG) Ingestion Configuration (P0)
+# ============================================================================
+documents:
+  # Documents are ingested from lyrics, so this uses lyrics config
+  # Additional document-specific settings
+  auto_create_from_lyrics: true
+  include_metadata: true
+
+# ============================================================================
+# Mood/Theme Ingestion Configuration (P2)
+# ============================================================================
+mood_theme:
+  # Primary dataset
+  primary_dataset: "joeddav/emotion"
+
+  # Quantity settings by environment
+  max_samples_dev: 1000
+  max_samples_staging: 3000
+  max_samples_production: 10000
+
+  # Quick mode
+  max_samples_quick: 100
+
+  # Processing settings
+  batch_size: 10
+
+  # Field mappings
+  field_mappings:
+    emotion: "emotion"
+    valence: "valence"
+    arousal: "arousal"
+
+# ============================================================================
+# Vector Store (ChromaDB) Configuration
+# ============================================================================
+chromadb:
+  # Collection name
+  collection_name: "lyrics_embeddings"
+
+  # Embedding model
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  embedding_dimension: 384
+
+  # Text chunking settings
+  chunk_size: 512  # Characters per chunk
+  chunk_overlap: 50  # Overlap between chunks
+  chunk_strategy: "lyrics"  # lyrics | recursive | sentence | paragraph
+
+  # Batch processing
+  batch_size: 32  # Embeddings to generate at once
+
+  # Metadata to store with embeddings
+  metadata_fields:
+    - "genre"
+    - "mood"
+    - "doc_type"
+    - "language"
+    - "title"
+
+  # Auto-populate from lyrics
+  auto_populate: true
+
+  # Reset collection before ingestion
+  reset_collection: false
+
+# ============================================================================
+# Processing Pipeline Settings
+# ============================================================================
+pipeline:
+  # Enable/disable pipeline steps
+  steps:
+    environment_check: true
+    user_setup: true
+    voice_profiles: true
+    lyrics_ingestion: true
+    music_track_ingestion: true  # P0
+    song_ingestion: true  # P1
+    voice_profile_hf_ingestion: false  # P1 (optional, uses config by default)
+    document_ingestion: true  # P0 (auto from lyrics)
+    mood_theme_ingestion: false  # P2 (optional)
+    vector_store_population: true
+    verification: true
+
+  # Priority order (P0 = critical, P1 = important, P2 = optional)
+  priority_order:
+    p0:  # Critical - must be filled first
+      - lyrics_ingestion
+      - music_track_ingestion
+      - document_ingestion
+    p1:  # Important - fill after P0
+      - song_ingestion
+      - voice_profile_hf_ingestion
+    p2:  # Optional - can be filled anytime
+      - mood_theme_ingestion
+
+  # Error handling
+  stop_on_error: false  # Continue on non-critical errors
+  max_retries: 3  # Retries for failed operations
+  retry_delay: 5  # Seconds between retries
+
+  # Progress tracking
+  show_progress: true
+  progress_update_interval: 10  # Update every N items
+
+# ============================================================================
+# Data Quality Settings
+# ============================================================================
+quality:
+  # Cleaning
+  remove_empty_lines: true
+  normalize_whitespace: true
+  remove_special_chars: false
+
+  # Validation
+  validate_structure: true
+  validate_language: true
+  validate_encoding: true
+
+  # Categorization
+  auto_categorize_genre: true
+  auto_categorize_mood: true
+
+  # Metadata extraction
+  extract_structure: true
+  extract_theme: true
+  extract_language: true
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+logging:
+  # Log level: DEBUG | INFO | WARNING | ERROR | CRITICAL
+  level: "INFO"
+
+  # Log file settings
+  file: "logs/ingestion_{timestamp}.log"
+
+  # Console logging
+  console: true
+  console_level: "INFO"
+
+  # Detailed logging
+  log_sql_queries: false
+  log_embedding_progress: true
+  log_validation_errors: true
+
+  # Log format
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+
+# ============================================================================
+# Performance Optimization
+# ============================================================================
+performance:
+  # Memory management
+  max_memory_mb: 8192  # Maximum memory usage
+  cleanup_interval: 100  # Clear cache every N items
+
+  # Database connection
+  db_pool_size: 10
+  db_max_overflow: 20
+
+  # Parallel processing
+  use_multiprocessing: true
+  max_workers: 4
+
+  # Caching
+  cache_embeddings: true
+  cache_validations: true
+
+# ============================================================================
+# Verification Settings
+# ============================================================================
+verification:
+  # Post-ingestion checks
+  check_user_count: true
+  check_voice_profile_count: true
+  check_lyrics_count: true
+  check_chromadb_count: true
+
+  # Minimum requirements
+  min_users: 1
+  min_voice_profiles: 4
+  min_lyrics: 100  # Minimum for readiness
+
+  # RAG quality check
+  test_rag_query: true
+  test_query: "Write a happy love song about summer"
+  test_n_results: 5
+
+  # Report generation
+  generate_report: true
+  report_file: "logs/ingestion_report_{timestamp}.txt"
+
+# ============================================================================
+# Integration Settings
+# ============================================================================
+integration:
+  # External services
+  huggingface:
+    cache_dir: ".cache/huggingface"
+    use_auth_token: false  # Set to token string if needed
+
+  # Database
+  verify_connection: true
+  create_tables: false  # Assume tables exist (from Alembic)
+
+  # ChromaDB
+  verify_chromadb: true
+  chromadb_host: "localhost"
+  chromadb_port: 8001
+
+# ============================================================================
+# Environment-Specific Overrides
+# ============================================================================
+environments:
+  development:
+    lyrics:
+      max_lyrics: 2000
+    logging:
+      level: "DEBUG"
+    performance:
+      max_workers: 2
+
+  staging:
+    lyrics:
+      max_lyrics: 5000
+    logging:
+      level: "INFO"
+    performance:
+      max_workers: 4
+
+  production:
+    lyrics:
+      max_lyrics: 50000
+    logging:
+      level: "WARNING"
+      log_sql_queries: false
+    performance:
+      max_workers: 8
+      max_memory_mb: 8192
+    database:
+      admin_password: "${ADMIN_PASSWORD}"  # Use env var in production
+
+# ============================================================================
+# Feature Flags
+# ============================================================================
+features:
+  # Experimental features
+  use_llm_categorization: true  # Use LLM for genre/mood (slower but better)
+  extract_advanced_metadata: true  # Extract rhyme scheme, structure, etc.
+  generate_summaries: false  # Generate lyrics summaries (not implemented)
+
+  # Safety features
+  validate_before_insert: true
+  backup_before_reset: true
+  dry_run_available: true

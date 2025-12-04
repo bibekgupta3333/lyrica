@@ -20,10 +20,12 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import get_orchestrator
+from app.api.dependencies import get_current_user
 from app.core.music_config import MusicGenre, MusicKey, get_genre_bpm_range, get_genre_instruments
 from app.core.voice_config import list_voice_profiles
 from app.crud.song import crud_song
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.song import (
     CompleteSongGenerationRequest,
     MusicGenreInfo,
@@ -48,14 +50,89 @@ router = APIRouter(prefix="/songs", tags=["Complete Songs"])
 # ============================================================================
 
 
-def get_current_user_id() -> uuid.UUID:
+def _normalize_genre_to_enum(genre: str) -> MusicGenre:
     """
-    Get current authenticated user ID.
+    Convert string genre to MusicGenre enum with validation and normalization.
 
-    TODO: Replace with actual auth dependency
+    Handles common variations like "hip-hop" -> "hiphop", "ballad" -> "pop".
     """
-    # Placeholder - replace with actual auth
-    return uuid.UUID("00000000-0000-0000-0000-000000000001")
+    if not genre:
+        return MusicGenre.POP
+
+    genre_normalized = genre.lower().strip()
+
+    # Handle common variations
+    genre_mapping = {
+        "hip-hop": "hiphop",
+        "hip hop": "hiphop",
+        "r&b": "rnb",
+        "r and b": "rnb",
+        "rnb": "rnb",
+        "ballad": "pop",  # Ballad is not a separate genre, map to pop
+        "pop ballad": "pop",
+    }
+
+    genre_normalized = genre_mapping.get(genre_normalized, genre_normalized)
+
+    try:
+        return MusicGenre(genre_normalized)
+    except ValueError:
+        logger.warning(f"Invalid genre '{genre}', defaulting to pop")
+        return MusicGenre.POP
+
+
+def _normalize_key_to_enum(key: Optional[str]) -> Optional[MusicKey]:
+    """
+    Convert string key to MusicKey enum with validation and normalization.
+
+    Handles formats like:
+    - "C major" -> MusicKey.C_MAJOR
+    - "C minor" -> MusicKey.C_MINOR
+    - "C" -> MusicKey.C_MAJOR
+    - "Cm" -> MusicKey.C_MINOR
+    """
+    if not key:
+        return None
+
+    key_normalized = key.strip().lower()
+
+    # Handle "major" and "minor" keywords
+    if "major" in key_normalized:
+        # Extract the note (e.g., "C major" -> "C")
+        note = key_normalized.split()[0].upper()
+        # Handle sharps/flats
+        if "#" in note or "sharp" in key_normalized:
+            note = note.replace("SHARP", "#").replace("sharp", "#")
+        key_normalized = note
+    elif "minor" in key_normalized:
+        # Extract the note and add "m" (e.g., "C minor" -> "Cm")
+        note = key_normalized.split()[0].upper()
+        if "#" in note or "sharp" in key_normalized:
+            note = note.replace("SHARP", "#").replace("sharp", "#")
+        key_normalized = note + "m"
+    else:
+        # Already in format like "C" or "Cm", just uppercase
+        key_normalized = key_normalized.upper()
+        # Handle flats (B flat -> A#, etc.)
+        if "flat" in key_normalized or "b" in key_normalized and len(key_normalized) > 1:
+            # Simple mapping for common flats
+            flat_mapping = {
+                "DB": "C#",
+                "EB": "D#",
+                "GB": "F#",
+                "AB": "G#",
+                "BB": "A#",
+            }
+            for flat_key, sharp_key in flat_mapping.items():
+                if flat_key in key_normalized:
+                    key_normalized = key_normalized.replace(flat_key, sharp_key)
+                    break
+
+    try:
+        return MusicKey(key_normalized)
+    except ValueError:
+        logger.warning(f"Invalid key '{key}' (normalized: '{key_normalized}'), using None")
+        return None
 
 
 async def _generate_song_files(
@@ -89,7 +166,7 @@ async def _generate_song_files(
         lyrics=lyrics_text,
         voice_profile=voice_profile,
         output_path=vocals_path,
-        chunk_by_sentences=True,
+        chunk_sentences=True,
     )
 
     # Apply vocal effects if specified
@@ -99,7 +176,7 @@ async def _generate_song_files(
         # Apply pitch shift
         if vocal_pitch_shift != 0:
             pitch_service = get_pitch_control()
-            vocals_path = pitch_service.adjust_pitch(
+            vocals_path = pitch_service.shift_pitch(
                 audio_path=vocals_path, semitones=vocal_pitch_shift, output_path=vocals_path
             )
 
@@ -113,8 +190,18 @@ async def _generate_song_files(
     # Step 2: Generate music
     logger.info(f"Step 2/5: Generating instrumental music for song {song_id}")
     music_path = base_path / "music.wav"
+
+    # Convert string genre and key to enums
+    genre_enum = _normalize_genre_to_enum(genre)
+    key_enum = _normalize_key_to_enum(key)
+
     music_service.generate_by_genre(
-        genre=genre, mood=None, key=key, bpm=bpm, duration=duration, output_path=music_path
+        genre=genre_enum,
+        mood=None,
+        key=key_enum,
+        bpm=bpm,
+        duration=duration,
+        output_path=music_path,
     )
 
     # Step 3: Mix vocals and music
@@ -144,15 +231,22 @@ async def _generate_song_files(
     # Get file info
     from pydub import AudioSegment
 
-    audio = AudioSegment.from_file(str(final_path))
+    try:
+        audio = AudioSegment.from_file(str(final_path))
+        actual_duration = len(audio) / 1000.0
+        file_size = final_path.stat().st_size if final_path.exists() else 0
+    except Exception as e:
+        logger.warning(f"Could not read audio file for duration: {e}")
+        actual_duration = duration  # Use requested duration as fallback
+        file_size = final_path.stat().st_size if final_path.exists() else 0
 
     return {
         "final_path": str(final_path),
         "vocals_path": str(vocals_path),
         "music_path": str(music_path),
         "preview_path": str(preview_path),
-        "duration": len(audio) / 1000.0,
-        "file_size": final_path.stat().st_size,
+        "duration": actual_duration,
+        "file_size": file_size,
     }
 
 
@@ -162,15 +256,99 @@ async def _generate_song_files(
 
 
 @router.post(
-    "/generate",
+    "/generate-complete",
     response_model=SongResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Generate complete song from scratch",
     description="Generate lyrics, vocals, and music in one workflow (WBS 2.14.1)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pop_love_song": {
+                            "summary": "Pop Love Song",
+                            "value": {
+                                "lyrics_prompt": "Write a happy pop song about summer love",
+                                "genre": "pop",
+                                "mood": "happy",
+                                "theme": "summer romance",
+                                "title": "Summer Dreams",
+                                "artist_name": "My Artist",
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {"reverb": 0.2, "echo": 0.1},
+                                "bpm": 120,
+                                "key": "C major",
+                                "music_style": "pop",
+                                "duration_seconds": 180,
+                                "use_rag": True,
+                                "llm_provider": "ollama",
+                                "is_public": False,
+                            },
+                        },
+                        "sad_ballad": {
+                            "summary": "Sad Ballad",
+                            "value": {
+                                "lyrics_prompt": "Write a melancholic ballad about losing someone you love",
+                                "genre": "ballad",
+                                "mood": "melancholic",
+                                "theme": "lost love",
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": -2,
+                                "vocal_effects": {"reverb": 0.3, "delay": 0.15},
+                                "bpm": 80,
+                                "key": "C minor",
+                                "duration_seconds": 240,
+                                "use_rag": True,
+                                "is_public": False,
+                            },
+                        },
+                        "rock_anthem": {
+                            "summary": "Rock Anthem",
+                            "value": {
+                                "lyrics_prompt": "Write a powerful rock anthem about freedom and breaking free",
+                                "genre": "rock",
+                                "mood": "powerful",
+                                "theme": "freedom",
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {"distortion": 0.1, "compression": 0.2},
+                                "bpm": 140,
+                                "key": "E major",
+                                "music_style": "rock",
+                                "duration_seconds": 200,
+                                "use_rag": True,
+                                "is_public": True,
+                            },
+                        },
+                        "hip_hop_track": {
+                            "summary": "Hip-Hop Track",
+                            "value": {
+                                "lyrics_prompt": "Write an energetic hip-hop song about chasing dreams",
+                                "genre": "hip-hop",
+                                "mood": "energetic",
+                                "theme": "motivation",
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {},
+                                "bpm": 95,
+                                "key": "A minor",
+                                "duration_seconds": 210,
+                                "use_rag": True,
+                                "is_public": False,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def generate_complete_song(
     request: CompleteSongGenerationRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate a complete song from scratch.
@@ -183,7 +361,7 @@ async def generate_complete_song(
 
     Example:
         ```bash
-        curl -X POST "http://localhost:8000/api/v1/songs/generate" \\
+        curl -X POST "http://localhost:8000/api/v1/songs/generate-complete" \\
              -H "Content-Type: application/json" \\
              -d '{
                  "lyrics_prompt": "Write a sad song about lost love",
@@ -198,7 +376,7 @@ async def generate_complete_song(
     """
     try:
         start_time = time.time()
-        user_id = get_current_user_id()
+        user_id = current_user.id
 
         logger.info(f"Starting complete song generation for user {user_id}")
 
@@ -229,6 +407,23 @@ async def generate_complete_song(
         # Step 2: Create song record
         logger.info("Step 2/6: Creating song record")
         song = await crud_song.create(db=db, user_id=user_id, obj_in=request, lyrics_id=None)
+
+        # Update voice_profile_id after creation if needed
+        if request.voice_profile_id and not song.voice_profile_id:
+            from sqlalchemy import select
+
+            from app.models.voice_profile import VoiceProfile as VoiceProfileModel
+
+            result = await db.execute(
+                select(VoiceProfileModel).where(
+                    VoiceProfileModel.voice_model == request.voice_profile_id
+                )
+            )
+            voice_profile = result.scalar_one_or_none()
+            if voice_profile:
+                song.voice_profile_id = voice_profile.id
+                await db.commit()
+                await db.refresh(song)
 
         # Update title
         if request.title:
@@ -337,10 +532,46 @@ async def generate_complete_song(
     response_model=SongResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Quick song generation with minimal parameters",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "quick_pop": {
+                            "summary": "Quick Pop Song",
+                            "value": {
+                                "prompt": "Write a happy pop song about dancing",
+                                "voice": "female_singer_1",
+                                "genre": "pop",
+                                "duration": 120,
+                            },
+                        },
+                        "quick_rock": {
+                            "summary": "Quick Rock Song",
+                            "value": {
+                                "prompt": "Write a rock song about rebellion",
+                                "voice": "male_singer_1",
+                                "genre": "rock",
+                                "duration": 180,
+                            },
+                        },
+                        "minimal": {
+                            "summary": "Minimal Request",
+                            "value": {
+                                "prompt": "Write a song about love",
+                                "voice": "female_singer_1",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def generate_quick_song(
     request: QuickSongRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Quick song generation with simplified parameters."""
     # Convert to full request
@@ -353,7 +584,7 @@ async def generate_quick_song(
         key=None,
     )
 
-    return await generate_complete_song(full_request, db)
+    return await generate_complete_song(full_request, db, current_user)
 
 
 # ============================================================================
@@ -366,13 +597,30 @@ async def generate_quick_song(
     response_model=SongResponse,
     summary="Retrieve song by ID",
     description="Get complete song information including metadata and file paths (WBS 2.14.5)",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            }
+        ]
+    },
 )
 async def get_song(
     song_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Retrieve song by ID."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -452,14 +700,51 @@ async def get_song(
     summary="Download song file",
     description="Download the final song audio file (WBS 2.14.6)",
     response_class=FileResponse,
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            },
+            {
+                "name": "format",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "wav"},
+                "examples": {
+                    "wav_format": {
+                        "summary": "WAV Format (Default)",
+                        "value": "wav",
+                    },
+                    "mp3_format": {
+                        "summary": "MP3 Format",
+                        "value": "mp3",
+                    },
+                    "ogg_format": {
+                        "summary": "OGG Format",
+                        "value": "ogg",
+                    },
+                },
+            },
+        ]
+    },
 )
 async def download_song(
     song_id: uuid.UUID,
     format: str = Query(default="wav", description="Audio format (wav, mp3, ogg, flac, m4a)"),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Download song file in specified format."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -518,13 +803,30 @@ async def download_song(
     "/{song_id}/stream",
     summary="Stream song audio",
     description="Stream song audio file (WBS 2.14.7)",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            }
+        ]
+    },
 )
 async def stream_song(
     song_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Stream song audio."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -569,14 +871,57 @@ async def stream_song(
     response_model=SongResponse,
     summary="Regenerate song vocals",
     description="Regenerate vocals with new voice or settings (WBS 2.14.8)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "change_voice": {
+                            "summary": "Change Voice Profile",
+                            "value": {
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                            },
+                        },
+                        "adjust_pitch": {
+                            "summary": "Adjust Pitch",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": 2,
+                                "vocal_effects": None,
+                            },
+                        },
+                        "add_effects": {
+                            "summary": "Add Vocal Effects",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": {"reverb": 0.3, "echo": 0.2, "chorus": 0.1},
+                            },
+                        },
+                        "full_change": {
+                            "summary": "Change Everything",
+                            "value": {
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": -1,
+                                "vocal_effects": {"reverb": 0.25, "delay": 0.1},
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def regenerate_vocals(
     song_id: uuid.UUID,
     request: RegenerateVocalsRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Regenerate vocals for existing song."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -615,7 +960,7 @@ async def regenerate_vocals(
             lyrics=lyrics_text,
             voice_profile=voice_profile,
             output_path=vocals_path,
-            chunk_by_sentences=True,
+            chunk_sentences=True,
         )
 
         # Apply effects
@@ -623,7 +968,7 @@ async def regenerate_vocals(
             from app.services.voice import get_pitch_control
 
             pitch_service = get_pitch_control()
-            pitch_service.adjust_pitch(
+            pitch_service.shift_pitch(
                 audio_path=vocals_path, semitones=vocal_pitch_shift, output_path=vocals_path
             )
 
@@ -654,7 +999,7 @@ async def regenerate_vocals(
 
         logger.success(f"Vocals regenerated for song {song_id}")
 
-        return await get_song(song_id, db)
+        return await get_song(song_id, db, current_user)
 
     except Exception as e:
         logger.error(f"Error regenerating vocals: {e}")
@@ -674,14 +1019,61 @@ async def regenerate_vocals(
     response_model=SongResponse,
     summary="Regenerate song music",
     description="Regenerate instrumental music with new settings (WBS 2.14.9)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "change_genre": {
+                            "summary": "Change Genre",
+                            "value": {
+                                "genre": "rock",
+                                "bpm": None,
+                                "key": None,
+                                "music_style": None,
+                            },
+                        },
+                        "adjust_bpm": {
+                            "summary": "Adjust BPM",
+                            "value": {
+                                "genre": None,
+                                "bpm": 140,
+                                "key": None,
+                                "music_style": None,
+                            },
+                        },
+                        "change_key": {
+                            "summary": "Change Key",
+                            "value": {
+                                "genre": None,
+                                "bpm": None,
+                                "key": "D major",
+                                "music_style": None,
+                            },
+                        },
+                        "full_change": {
+                            "summary": "Change All Music Settings",
+                            "value": {
+                                "genre": "jazz",
+                                "bpm": 100,
+                                "key": "B flat major",
+                                "music_style": "smooth jazz",
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def regenerate_music(
     song_id: uuid.UUID,
     request: RegenerateMusicRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Regenerate music for existing song."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -696,10 +1088,14 @@ async def regenerate_music(
         logger.info(f"Regenerating music for song {song_id}")
 
         # Use current or new settings
-        genre = request.genre or song.genre or "pop"
+        genre_str = request.genre or song.genre or "pop"
         bpm = request.bpm or song.bpm or 120
-        key = request.key or song.key or "C major"
+        key_str = request.key or song.key or "C major"
         duration = int(song.duration_seconds or 180)
+
+        # Convert string genre and key to enums
+        genre_enum = _normalize_genre_to_enum(genre_str)
+        key_enum = _normalize_key_to_enum(key_str)
 
         # Regenerate music
         base_path = Path("audio_files/songs") / str(song.id)
@@ -707,7 +1103,12 @@ async def regenerate_music(
         music_path = base_path / "music.wav"
 
         music_service.generate_by_genre(
-            genre=genre, mood=None, key=key, bpm=bpm, duration=duration, output_path=music_path
+            genre=genre_enum,
+            mood=None,
+            key=key_enum,
+            bpm=bpm,
+            duration=duration,
+            output_path=music_path,
         )
 
         # Remix with new music
@@ -726,17 +1127,17 @@ async def regenerate_music(
         # Remaster
         final_path = base_path / f"{song.id}.wav"
         mastering_service = get_song_mastering()
-        mastering_service.master_song(song_path=mixed_path, output_path=final_path, genre=genre)
+        mastering_service.master_song(song_path=mixed_path, output_path=final_path, genre=genre_str)
 
         # Update song
-        song.genre = genre
+        song.genre = genre_str
         song.bpm = bpm
-        song.key = key
+        song.key = key_str
         await db.commit()
 
         logger.success(f"Music regenerated for song {song_id}")
 
-        return await get_song(song_id, db)
+        return await get_song(song_id, db, current_user)
 
     except Exception as e:
         logger.error(f"Error regenerating music: {e}")
@@ -756,14 +1157,77 @@ async def regenerate_music(
     response_model=SongResponse,
     summary="Update song settings",
     description="Update song metadata and settings (WBS 2.14.10)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "update_title": {
+                            "summary": "Update Title Only",
+                            "value": {
+                                "title": "My Awesome Song (Remix)",
+                                "artist_name": None,
+                                "genre": None,
+                                "mood": None,
+                                "is_public": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "music_params": None,
+                            },
+                        },
+                        "make_public": {
+                            "summary": "Make Song Public",
+                            "value": {
+                                "title": None,
+                                "artist_name": None,
+                                "genre": None,
+                                "mood": None,
+                                "is_public": True,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "music_params": None,
+                            },
+                        },
+                        "update_metadata": {
+                            "summary": "Update Metadata",
+                            "value": {
+                                "title": "New Title",
+                                "artist_name": "My Artist Name",
+                                "genre": "pop",
+                                "mood": "happy",
+                                "is_public": False,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "music_params": None,
+                            },
+                        },
+                        "update_vocal_settings": {
+                            "summary": "Update Vocal Settings",
+                            "value": {
+                                "title": None,
+                                "artist_name": None,
+                                "genre": None,
+                                "mood": None,
+                                "is_public": None,
+                                "vocal_pitch_shift": 2,
+                                "vocal_effects": {"reverb": 0.3},
+                                "music_params": None,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def update_song_settings(
     song_id: uuid.UUID,
     request: UpdateSongSettingsRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update song settings."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -797,14 +1261,77 @@ async def update_song_settings(
     response_model=SongResponse,
     summary="Remix existing song",
     description="Create a remix with new vocals and/or music (WBS 2.14.13)",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "remix_vocals_only": {
+                            "summary": "Remix Vocals Only",
+                            "value": {
+                                "voice_profile_id": "male_singer_1",
+                                "vocal_pitch_shift": 0,
+                                "vocal_effects": {"reverb": 0.3},
+                                "genre": None,
+                                "bpm": None,
+                                "key": None,
+                                "vocals_volume_db": 0.0,
+                                "music_volume_db": -5.0,
+                            },
+                        },
+                        "remix_music_only": {
+                            "summary": "Remix Music Only",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "genre": "electronic",
+                                "bpm": 128,
+                                "key": "A minor",
+                                "vocals_volume_db": 0.0,
+                                "music_volume_db": -3.0,
+                            },
+                        },
+                        "full_remix": {
+                            "summary": "Full Remix",
+                            "value": {
+                                "voice_profile_id": "female_singer_1",
+                                "vocal_pitch_shift": 1,
+                                "vocal_effects": {"reverb": 0.2, "chorus": 0.15},
+                                "genre": "pop",
+                                "bpm": 130,
+                                "key": "G major",
+                                "vocals_volume_db": 1.0,
+                                "music_volume_db": -4.0,
+                            },
+                        },
+                        "adjust_mix": {
+                            "summary": "Adjust Mix Levels Only",
+                            "value": {
+                                "voice_profile_id": None,
+                                "vocal_pitch_shift": None,
+                                "vocal_effects": None,
+                                "genre": None,
+                                "bpm": None,
+                                "key": None,
+                                "vocals_volume_db": 2.0,
+                                "music_volume_db": -6.0,
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def remix_song(
     song_id: uuid.UUID,
     request: RemixSongRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Remix existing song with new settings."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -825,14 +1352,14 @@ async def remix_song(
                 vocal_pitch_shift=request.vocal_pitch_shift,
                 vocal_effects=request.vocal_effects,
             )
-            await regenerate_vocals(song_id, regen_vocals_req, db)
+            await regenerate_vocals(song_id, regen_vocals_req, db, current_user)
 
         # Regenerate music if requested
         if request.genre or request.bpm or request.key:
             regen_music_req = RegenerateMusicRequest(
                 genre=request.genre, bpm=request.bpm, key=request.key
             )
-            await regenerate_music(song_id, regen_music_req, db)
+            await regenerate_music(song_id, regen_music_req, db, current_user)
 
         # Apply custom mixing if specified
         if request.vocals_volume_db != 0.0 or request.music_volume_db != -5.0:
@@ -858,7 +1385,7 @@ async def remix_song(
 
         logger.success(f"Song {song_id} remixed successfully")
 
-        return await get_song(song_id, db)
+        return await get_song(song_id, db, current_user)
 
     except Exception as e:
         logger.error(f"Error remixing song: {e}")
@@ -878,6 +1405,53 @@ async def remix_song(
     response_model=SongListResponse,
     summary="List user songs",
     description="Get list of user's songs with pagination",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "skip",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 0, "minimum": 0},
+                "examples": {
+                    "first_page": {"summary": "First Page", "value": 0},
+                    "second_page": {"summary": "Second Page", "value": 20},
+                },
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100},
+                "examples": {
+                    "small": {"summary": "Small Page", "value": 10},
+                    "default": {"summary": "Default", "value": 20},
+                    "large": {"summary": "Large Page", "value": 50},
+                },
+            },
+            {
+                "name": "status",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "examples": {
+                    "completed": {"summary": "Completed Songs", "value": "completed"},
+                    "processing": {"summary": "Processing Songs", "value": "processing"},
+                    "failed": {"summary": "Failed Songs", "value": "failed"},
+                },
+            },
+            {
+                "name": "genre",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "examples": {
+                    "pop": {"summary": "Pop Genre", "value": "pop"},
+                    "rock": {"summary": "Rock Genre", "value": "rock"},
+                    "hip-hop": {"summary": "Hip-Hop Genre", "value": "hip-hop"},
+                },
+            },
+        ]
+    },
 )
 async def list_user_songs(
     skip: int = Query(default=0, ge=0),
@@ -885,9 +1459,10 @@ async def list_user_songs(
     status: Optional[str] = Query(default=None, description="Filter by status"),
     genre: Optional[str] = Query(default=None, description="Filter by genre"),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List user's songs."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     songs = await crud_song.get_by_user(
         db, user_id, skip=skip, limit=limit, status=status, genre=genre
@@ -947,6 +1522,21 @@ async def list_user_songs(
     "/public/trending",
     response_model=List[SongResponse],
     summary="Get trending public songs",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 10, "minimum": 1, "maximum": 50},
+                "examples": {
+                    "top_10": {"summary": "Top 10", "value": 10},
+                    "top_20": {"summary": "Top 20", "value": 20},
+                    "top_50": {"summary": "Top 50", "value": 50},
+                },
+            }
+        ]
+    },
 )
 async def get_trending_songs(
     limit: int = Query(default=10, ge=1, le=50),
@@ -1017,10 +1607,12 @@ async def list_voices():
         VoiceProfileInfo(
             id=profile.id,
             name=profile.name,
-            gender=profile.gender.value,
+            gender=(
+                profile.gender.value if hasattr(profile.gender, "value") else str(profile.gender)
+            ),
             language=profile.language,
             description=profile.description,
-            style=profile.style.value if profile.style else None,
+            style=None,  # VoiceProfile from config doesn't have style attribute
         )
         for profile in profiles
     ]
@@ -1067,13 +1659,30 @@ async def list_genres():
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete song",
     description="Delete a song and all its associated files",
+    openapi_extra={
+        "parameters": [
+            {
+                "name": "song_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+                "examples": {
+                    "example_uuid": {
+                        "summary": "Example Song ID",
+                        "value": "123e4567-e89b-12d3-a456-426614174000",
+                    }
+                },
+            }
+        ]
+    },
 )
 async def delete_song(
     song_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete song."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:

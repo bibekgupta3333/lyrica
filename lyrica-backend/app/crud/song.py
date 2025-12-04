@@ -10,6 +10,7 @@ from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.song import Song
+from app.models.voice_profile import VoiceProfile as VoiceProfileModel
 from app.schemas.song import (
     CompleteSongGenerationRequest,
     SongFromLyricsRequest,
@@ -120,6 +121,19 @@ class CRUDSong:
         lyrics_id: Optional[uuid.UUID] = None,
     ) -> Song:
         """Create a new song."""
+        # Convert voice_profile_id string to UUID if provided
+        voice_profile_uuid = None
+        if isinstance(obj_in, CompleteSongGenerationRequest) and obj_in.voice_profile_id:
+            # Look up voice profile by voice_model (which matches the string ID)
+            result = await db.execute(
+                select(VoiceProfileModel).where(
+                    VoiceProfileModel.voice_model == obj_in.voice_profile_id
+                )
+            )
+            voice_profile = result.scalar_one_or_none()
+            if voice_profile:
+                voice_profile_uuid = voice_profile.id
+
         song = Song(
             user_id=user_id,
             lyrics_id=lyrics_id,
@@ -132,6 +146,7 @@ class CRUDSong:
             music_style=obj_in.music_style,
             vocal_pitch_shift=obj_in.vocal_pitch_shift,
             vocal_effects=obj_in.vocal_effects,
+            voice_profile_id=voice_profile_uuid,
             music_params={
                 "duration_seconds": obj_in.duration_seconds,
                 "bpm": obj_in.bpm,
