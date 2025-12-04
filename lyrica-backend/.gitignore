@@ -80,3 +80,5 @@ temp/
 
 # Alembic
 alembic/versions/*.pyc
+
+audio_files/

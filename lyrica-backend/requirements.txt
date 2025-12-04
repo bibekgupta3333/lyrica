@@ -95,7 +95,15 @@ torchaudio>=2.2.0
 # phonemizer>=3.3.0  # May have issues on Python 3.12, install separately if needed
 
 # Music Generation (Python 3.12 compatible)
-# audiocraft>=1.3.0  # Requires FFmpeg system libraries
+# Note: AudioCraft has compatibility issues with Python 3.12:
+# - Requires Python 3.9-3.11
+# - Requires torch==2.1.0 (conflicts with Python 3.12 compatible torch>=2.2.0)
+# - Requires xformers<0.0.23 (may not build on macOS ARM)
+# The code includes a fallback to generate placeholder audio when AudioCraft is unavailable.
+# To install AudioCraft (requires Python 3.9-3.11 environment):
+#   pip install audiocraft>=1.3.0
+#   pip install av==11.0.0 julius hydra-core hydra_colorlog sentencepiece num2words torchmetrics einops flashy
+#   pip install 'xformers<0.0.23'  # May require OpenMP support
 transformers>=4.36.0
 torch>=2.2.0  # Python 3.12 compatible
 torchaudio>=2.2.0  # Python 3.12 compatible

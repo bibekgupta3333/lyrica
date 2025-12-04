@@ -5,7 +5,6 @@ This agent generates lyrics based on the song structure planned
 by the Planning Agent, optionally using RAG for context.
 """
 
-import asyncio
 from typing import Dict, List
 
 from loguru import logger
@@ -117,11 +116,10 @@ class GenerationAgent:
             # Search vector store
             results = await rag_service.retrieve(
                 query=search_query,
-                collection_name="lyrics",
                 n_results=5,
             )
 
-            return [doc["content"] for doc in results]
+            return [doc["text"] for doc in results]
 
         except Exception as e:
             logger.warning(f"Failed to retrieve RAG context: {str(e)}")

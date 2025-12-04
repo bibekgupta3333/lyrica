@@ -20,10 +20,12 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import get_orchestrator
+from app.api.dependencies import get_current_user
 from app.core.music_config import MusicGenre, MusicKey, get_genre_bpm_range, get_genre_instruments
 from app.core.voice_config import list_voice_profiles
 from app.crud.song import crud_song
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.song import (
     CompleteSongGenerationRequest,
     MusicGenreInfo,
@@ -48,14 +50,89 @@ router = APIRouter(prefix="/songs", tags=["Complete Songs"])
 # ============================================================================
 
 
-def get_current_user_id() -> uuid.UUID:
+def _normalize_genre_to_enum(genre: str) -> MusicGenre:
     """
-    Get current authenticated user ID.
+    Convert string genre to MusicGenre enum with validation and normalization.
 
-    TODO: Replace with actual auth dependency
+    Handles common variations like "hip-hop" -> "hiphop", "ballad" -> "pop".
     """
-    # Placeholder - replace with actual auth
-    return uuid.UUID("00000000-0000-0000-0000-000000000001")
+    if not genre:
+        return MusicGenre.POP
+
+    genre_normalized = genre.lower().strip()
+
+    # Handle common variations
+    genre_mapping = {
+        "hip-hop": "hiphop",
+        "hip hop": "hiphop",
+        "r&b": "rnb",
+        "r and b": "rnb",
+        "rnb": "rnb",
+        "ballad": "pop",  # Ballad is not a separate genre, map to pop
+        "pop ballad": "pop",
+    }
+
+    genre_normalized = genre_mapping.get(genre_normalized, genre_normalized)
+
+    try:
+        return MusicGenre(genre_normalized)
+    except ValueError:
+        logger.warning(f"Invalid genre '{genre}', defaulting to pop")
+        return MusicGenre.POP
+
+
+def _normalize_key_to_enum(key: Optional[str]) -> Optional[MusicKey]:
+    """
+    Convert string key to MusicKey enum with validation and normalization.
+
+    Handles formats like:
+    - "C major" -> MusicKey.C_MAJOR
+    - "C minor" -> MusicKey.C_MINOR
+    - "C" -> MusicKey.C_MAJOR
+    - "Cm" -> MusicKey.C_MINOR
+    """
+    if not key:
+        return None
+
+    key_normalized = key.strip().lower()
+
+    # Handle "major" and "minor" keywords
+    if "major" in key_normalized:
+        # Extract the note (e.g., "C major" -> "C")
+        note = key_normalized.split()[0].upper()
+        # Handle sharps/flats
+        if "#" in note or "sharp" in key_normalized:
+            note = note.replace("SHARP", "#").replace("sharp", "#")
+        key_normalized = note
+    elif "minor" in key_normalized:
+        # Extract the note and add "m" (e.g., "C minor" -> "Cm")
+        note = key_normalized.split()[0].upper()
+        if "#" in note or "sharp" in key_normalized:
+            note = note.replace("SHARP", "#").replace("sharp", "#")
+        key_normalized = note + "m"
+    else:
+        # Already in format like "C" or "Cm", just uppercase
+        key_normalized = key_normalized.upper()
+        # Handle flats (B flat -> A#, etc.)
+        if "flat" in key_normalized or "b" in key_normalized and len(key_normalized) > 1:
+            # Simple mapping for common flats
+            flat_mapping = {
+                "DB": "C#",
+                "EB": "D#",
+                "GB": "F#",
+                "AB": "G#",
+                "BB": "A#",
+            }
+            for flat_key, sharp_key in flat_mapping.items():
+                if flat_key in key_normalized:
+                    key_normalized = key_normalized.replace(flat_key, sharp_key)
+                    break
+
+    try:
+        return MusicKey(key_normalized)
+    except ValueError:
+        logger.warning(f"Invalid key '{key}' (normalized: '{key_normalized}'), using None")
+        return None
 
 
 async def _generate_song_files(
@@ -89,7 +166,7 @@ async def _generate_song_files(
         lyrics=lyrics_text,
         voice_profile=voice_profile,
         output_path=vocals_path,
-        chunk_by_sentences=True,
+        chunk_sentences=True,
     )
 
     # Apply vocal effects if specified
@@ -99,7 +176,7 @@ async def _generate_song_files(
         # Apply pitch shift
         if vocal_pitch_shift != 0:
             pitch_service = get_pitch_control()
-            vocals_path = pitch_service.adjust_pitch(
+            vocals_path = pitch_service.shift_pitch(
                 audio_path=vocals_path, semitones=vocal_pitch_shift, output_path=vocals_path
             )
 
@@ -113,8 +190,18 @@ async def _generate_song_files(
     # Step 2: Generate music
     logger.info(f"Step 2/5: Generating instrumental music for song {song_id}")
     music_path = base_path / "music.wav"
+
+    # Convert string genre and key to enums
+    genre_enum = _normalize_genre_to_enum(genre)
+    key_enum = _normalize_key_to_enum(key)
+
     music_service.generate_by_genre(
-        genre=genre, mood=None, key=key, bpm=bpm, duration=duration, output_path=music_path
+        genre=genre_enum,
+        mood=None,
+        key=key_enum,
+        bpm=bpm,
+        duration=duration,
+        output_path=music_path,
     )
 
     # Step 3: Mix vocals and music
@@ -144,15 +231,22 @@ async def _generate_song_files(
     # Get file info
     from pydub import AudioSegment
 
-    audio = AudioSegment.from_file(str(final_path))
+    try:
+        audio = AudioSegment.from_file(str(final_path))
+        actual_duration = len(audio) / 1000.0
+        file_size = final_path.stat().st_size if final_path.exists() else 0
+    except Exception as e:
+        logger.warning(f"Could not read audio file for duration: {e}")
+        actual_duration = duration  # Use requested duration as fallback
+        file_size = final_path.stat().st_size if final_path.exists() else 0
 
     return {
         "final_path": str(final_path),
         "vocals_path": str(vocals_path),
         "music_path": str(music_path),
         "preview_path": str(preview_path),
-        "duration": len(audio) / 1000.0,
-        "file_size": final_path.stat().st_size,
+        "duration": actual_duration,
+        "file_size": file_size,
     }
 
 
@@ -162,7 +256,7 @@ async def _generate_song_files(
 
 
 @router.post(
-    "/generate",
+    "/generate-complete",
     response_model=SongResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Generate complete song from scratch",
@@ -254,6 +348,7 @@ async def _generate_song_files(
 async def generate_complete_song(
     request: CompleteSongGenerationRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate a complete song from scratch.
@@ -266,7 +361,7 @@ async def generate_complete_song(
 
     Example:
         ```bash
-        curl -X POST "http://localhost:8000/api/v1/songs/generate" \\
+        curl -X POST "http://localhost:8000/api/v1/songs/generate-complete" \\
              -H "Content-Type: application/json" \\
              -d '{
                  "lyrics_prompt": "Write a sad song about lost love",
@@ -281,7 +376,7 @@ async def generate_complete_song(
     """
     try:
         start_time = time.time()
-        user_id = get_current_user_id()
+        user_id = current_user.id
 
         logger.info(f"Starting complete song generation for user {user_id}")
 
@@ -476,6 +571,7 @@ async def generate_complete_song(
 async def generate_quick_song(
     request: QuickSongRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Quick song generation with simplified parameters."""
     # Convert to full request
@@ -488,7 +584,7 @@ async def generate_quick_song(
         key=None,
     )
 
-    return await generate_complete_song(full_request, db)
+    return await generate_complete_song(full_request, db, current_user)
 
 
 # ============================================================================
@@ -521,9 +617,10 @@ async def generate_quick_song(
 async def get_song(
     song_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Retrieve song by ID."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -644,9 +741,10 @@ async def download_song(
     song_id: uuid.UUID,
     format: str = Query(default="wav", description="Audio format (wav, mp3, ogg, flac, m4a)"),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Download song file in specified format."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -725,9 +823,10 @@ async def download_song(
 async def stream_song(
     song_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Stream song audio."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -819,9 +918,10 @@ async def regenerate_vocals(
     song_id: uuid.UUID,
     request: RegenerateVocalsRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Regenerate vocals for existing song."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -860,7 +960,7 @@ async def regenerate_vocals(
             lyrics=lyrics_text,
             voice_profile=voice_profile,
             output_path=vocals_path,
-            chunk_by_sentences=True,
+            chunk_sentences=True,
         )
 
         # Apply effects
@@ -868,7 +968,7 @@ async def regenerate_vocals(
             from app.services.voice import get_pitch_control
 
             pitch_service = get_pitch_control()
-            pitch_service.adjust_pitch(
+            pitch_service.shift_pitch(
                 audio_path=vocals_path, semitones=vocal_pitch_shift, output_path=vocals_path
             )
 
@@ -899,7 +999,7 @@ async def regenerate_vocals(
 
         logger.success(f"Vocals regenerated for song {song_id}")
 
-        return await get_song(song_id, db)
+        return await get_song(song_id, db, current_user)
 
     except Exception as e:
         logger.error(f"Error regenerating vocals: {e}")
@@ -970,9 +1070,10 @@ async def regenerate_music(
     song_id: uuid.UUID,
     request: RegenerateMusicRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Regenerate music for existing song."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -987,10 +1088,14 @@ async def regenerate_music(
         logger.info(f"Regenerating music for song {song_id}")
 
         # Use current or new settings
-        genre = request.genre or song.genre or "pop"
+        genre_str = request.genre or song.genre or "pop"
         bpm = request.bpm or song.bpm or 120
-        key = request.key or song.key or "C major"
+        key_str = request.key or song.key or "C major"
         duration = int(song.duration_seconds or 180)
+
+        # Convert string genre and key to enums
+        genre_enum = _normalize_genre_to_enum(genre_str)
+        key_enum = _normalize_key_to_enum(key_str)
 
         # Regenerate music
         base_path = Path("audio_files/songs") / str(song.id)
@@ -998,7 +1103,12 @@ async def regenerate_music(
         music_path = base_path / "music.wav"
 
         music_service.generate_by_genre(
-            genre=genre, mood=None, key=key, bpm=bpm, duration=duration, output_path=music_path
+            genre=genre_enum,
+            mood=None,
+            key=key_enum,
+            bpm=bpm,
+            duration=duration,
+            output_path=music_path,
         )
 
         # Remix with new music
@@ -1017,17 +1127,17 @@ async def regenerate_music(
         # Remaster
         final_path = base_path / f"{song.id}.wav"
         mastering_service = get_song_mastering()
-        mastering_service.master_song(song_path=mixed_path, output_path=final_path, genre=genre)
+        mastering_service.master_song(song_path=mixed_path, output_path=final_path, genre=genre_str)
 
         # Update song
-        song.genre = genre
+        song.genre = genre_str
         song.bpm = bpm
-        song.key = key
+        song.key = key_str
         await db.commit()
 
         logger.success(f"Music regenerated for song {song_id}")
 
-        return await get_song(song_id, db)
+        return await get_song(song_id, db, current_user)
 
     except Exception as e:
         logger.error(f"Error regenerating music: {e}")
@@ -1114,9 +1224,10 @@ async def update_song_settings(
     song_id: uuid.UUID,
     request: UpdateSongSettingsRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update song settings."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -1217,9 +1328,10 @@ async def remix_song(
     song_id: uuid.UUID,
     request: RemixSongRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Remix existing song with new settings."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:
@@ -1240,14 +1352,14 @@ async def remix_song(
                 vocal_pitch_shift=request.vocal_pitch_shift,
                 vocal_effects=request.vocal_effects,
             )
-            await regenerate_vocals(song_id, regen_vocals_req, db)
+            await regenerate_vocals(song_id, regen_vocals_req, db, current_user)
 
         # Regenerate music if requested
         if request.genre or request.bpm or request.key:
             regen_music_req = RegenerateMusicRequest(
                 genre=request.genre, bpm=request.bpm, key=request.key
             )
-            await regenerate_music(song_id, regen_music_req, db)
+            await regenerate_music(song_id, regen_music_req, db, current_user)
 
         # Apply custom mixing if specified
         if request.vocals_volume_db != 0.0 or request.music_volume_db != -5.0:
@@ -1273,7 +1385,7 @@ async def remix_song(
 
         logger.success(f"Song {song_id} remixed successfully")
 
-        return await get_song(song_id, db)
+        return await get_song(song_id, db, current_user)
 
     except Exception as e:
         logger.error(f"Error remixing song: {e}")
@@ -1347,9 +1459,10 @@ async def list_user_songs(
     status: Optional[str] = Query(default=None, description="Filter by status"),
     genre: Optional[str] = Query(default=None, description="Filter by genre"),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List user's songs."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
 
     songs = await crud_song.get_by_user(
         db, user_id, skip=skip, limit=limit, status=status, genre=genre
@@ -1566,9 +1679,10 @@ async def list_genres():
 async def delete_song(
     song_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete song."""
-    user_id = get_current_user_id()
+    user_id = current_user.id
     song = await crud_song.get(db, song_id)
 
     if not song:

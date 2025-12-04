@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 
@@ -56,11 +57,12 @@ async def lifespan(app: FastAPI):
 
     # Initialize Ollama client (verify connection)
     try:
-        from app.services.llm.factory import llm_factory
+        from app.services.llm import get_llm_service
 
         # This will initialize the LLM service based on settings
-        llm_service = llm_factory.get_service()
-        logger.info(f"LLM service initialized: {llm_service.provider.value}")
+        llm_service = get_llm_service()
+        model_info = llm_service.get_model_info()
+        logger.info(f"LLM service initialized: {model_info['provider']} - {model_info['model']}")
     except Exception as e:
         logger.warning(f"LLM service initialization failed: {e}")
 
@@ -135,6 +137,53 @@ if settings.rate_limit_enabled:
 
 # Include API v1 router
 app.include_router(api_router, prefix="/api/v1")
+
+
+# Configure OpenAPI schema with security schemes for Swagger UI
+def custom_openapi():
+    """Custom OpenAPI schema with security configuration."""
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=settings.app_name,
+        version=__version__,
+        description="Agentic Song Lyrics Generator - Backend API",
+        routes=app.routes,
+    )
+
+    # Ensure components exist
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    if "securitySchemes" not in openapi_schema["components"]:
+        openapi_schema["components"]["securitySchemes"] = {}
+
+    # Add/update security schemes for Swagger UI
+    openapi_schema["components"]["securitySchemes"].update(
+        {
+            "OAuth2PasswordBearer": {
+                "type": "oauth2",
+                "flows": {
+                    "password": {
+                        "tokenUrl": "/api/v1/auth/login",
+                        "scopes": {},
+                    }
+                },
+            },
+            "Bearer": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter your JWT token (obtained from /api/v1/auth/login)",
+            },
+        }
+    )
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 
 @app.get("/", include_in_schema=False)

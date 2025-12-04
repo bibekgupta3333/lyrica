@@ -303,9 +303,9 @@ class VoiceSynthesisService:
         speed: float,
     ) -> Path:
         """Synthesize speech using Microsoft Edge TTS (Python 3.12 compatible)."""
-        import asyncio
-
         import edge_tts
+
+        from app.utils.async_utils import run_async_in_thread
 
         try:
 
@@ -319,8 +319,8 @@ class VoiceSynthesisService:
                 )
                 await communicate.save(str(output_path))
 
-            # Run async function
-            asyncio.run(generate())
+            # Run async function safely (handles both sync and async contexts)
+            run_async_in_thread(generate())
 
             logger.success(f"Edge TTS synthesis complete: {output_path}")
             return output_path
