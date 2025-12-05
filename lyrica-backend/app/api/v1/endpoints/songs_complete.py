@@ -204,9 +204,13 @@ async def _generate_song_files(
         output_path=music_path,
     )
 
-    # Step 3: Mix vocals and music
+    # Step 3: Mix vocals and music with intelligent frequency balancing
     logger.info(f"Step 3/5: Mixing vocals and music for song {song_id}")
     mixed_path = base_path / "mixed.wav"
+
+    # Convert string genre to enum for intelligent mixing
+    genre_enum = _normalize_genre_to_enum(genre)
+
     assembly_service.assemble_song(
         vocals_path=vocals_path,
         music_path=music_path,
@@ -214,6 +218,8 @@ async def _generate_song_files(
         vocals_volume_db=0.0,
         music_volume_db=-5.0,
         crossfade_ms=500,
+        use_intelligent_mixing=True,  # Enable intelligent frequency balancing
+        genre=genre_enum,
     )
 
     # Step 4: Master song

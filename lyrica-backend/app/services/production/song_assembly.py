@@ -31,6 +31,8 @@ class SongAssemblyService:
         vocals_volume_db: float = 0.0,
         music_volume_db: float = -3.0,
         crossfade_ms: int = 0,
+        use_intelligent_mixing: bool = True,
+        genre: Optional[MusicGenre] = None,
     ) -> Path:
         """
         Assemble complete song by mixing vocals with instrumental music.
@@ -42,6 +44,8 @@ class SongAssemblyService:
             vocals_volume_db: Vocal track volume adjustment (dB)
             music_volume_db: Music track volume adjustment (dB, typically lower)
             crossfade_ms: Crossfade duration at boundaries (milliseconds)
+            use_intelligent_mixing: Enable intelligent frequency balancing and sidechain compression
+            genre: Optional genre for genre-specific EQ
 
         Returns:
             Path to assembled song
@@ -54,11 +58,56 @@ class SongAssemblyService:
                 music_path=Path("music.wav"),
                 vocals_volume_db=0,
                 music_volume_db=-5,  # Music quieter than vocals
-                crossfade_ms=500
+                crossfade_ms=500,
+                use_intelligent_mixing=True,
+                genre=MusicGenre.POP
             )
             ```
         """
-        logger.info(f"Assembling song: vocals + music")
+        logger.info(
+            f"Assembling song: vocals + music (intelligent mixing: {use_intelligent_mixing})"
+        )
+
+        # Apply intelligent frequency balancing if enabled
+        if use_intelligent_mixing:
+            from app.services.production.frequency_balancing import (
+                get_dynamic_eq,
+                get_sidechain_compression,
+            )
+
+            dynamic_eq = get_dynamic_eq()
+            sidechain = get_sidechain_compression()
+
+            # Create temporary paths for processed audio
+            import tempfile
+
+            temp_dir = Path(tempfile.mkdtemp())
+
+            try:
+                # Apply dynamic EQ to vocals
+                vocals_eq_path = temp_dir / "vocals_eq.wav"
+                vocals_eq_path = dynamic_eq.apply_dynamic_eq(
+                    vocals_path, genre=genre, output_path=vocals_eq_path
+                )
+
+                # Apply sidechain compression to music (music ducks for vocals)
+                music_sidechain_path = temp_dir / "music_sidechain.wav"
+                music_sidechain_path = sidechain.apply_sidechain_compression(
+                    vocals_path, music_path, output_path=music_sidechain_path
+                )
+
+                # Use processed audio
+                vocals_path = vocals_eq_path
+                music_path = music_sidechain_path
+            except Exception as e:
+                logger.warning(f"Intelligent mixing failed, using basic mixing: {e}")
+                # Fall back to basic mixing
+            finally:
+                # Cleanup temp directory
+                import shutil
+
+                if temp_dir.exists():
+                    shutil.rmtree(temp_dir, ignore_errors=True)
 
         # Load audio files
         vocals = AudioSegment.from_file(str(vocals_path))
