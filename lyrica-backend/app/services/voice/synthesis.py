@@ -137,6 +137,7 @@ class VoiceSynthesisService:
         output_path: Path,
         temperature: float = 0.7,
         speed: float = 1.0,
+        enable_enhancement: bool = True,
     ) -> Path:
         """
         Synthesize speech from text using specified voice profile.
@@ -147,6 +148,7 @@ class VoiceSynthesisService:
             output_path: Path to save audio file
             temperature: Sampling temperature (creativity)
             speed: Speech speed multiplier
+            enable_enhancement: Whether to apply voice enhancement (default: True)
 
         Returns:
             Path to generated audio file
@@ -166,21 +168,58 @@ class VoiceSynthesisService:
             f"Synthesizing speech with {voice_profile.engine.value} engine: {len(text)} chars"
         )
 
+        # Create temporary path for initial synthesis
+        temp_path = output_path.parent / f"{output_path.stem}_temp{output_path.suffix}"
+
         # Route to appropriate engine
         if voice_profile.engine == TTSEngine.BARK:
-            return self._synthesize_with_bark(text, voice_profile, output_path, temperature)
+            audio_path = self._synthesize_with_bark(text, voice_profile, temp_path, temperature)
         elif voice_profile.engine == TTSEngine.COQUI:
-            return self._synthesize_with_coqui(text, voice_profile, output_path, speed)
+            audio_path = self._synthesize_with_coqui(text, voice_profile, temp_path, speed)
         elif voice_profile.engine == TTSEngine.TORTOISE:
-            return self._synthesize_with_tortoise(text, voice_profile, output_path, temperature)
+            audio_path = self._synthesize_with_tortoise(text, voice_profile, temp_path, temperature)
         elif voice_profile.engine == TTSEngine.EDGE:
-            return self._synthesize_with_edge(text, voice_profile, output_path, speed)
+            audio_path = self._synthesize_with_edge(text, voice_profile, temp_path, speed)
         elif voice_profile.engine == TTSEngine.GTTS:
-            return self._synthesize_with_gtts(text, voice_profile, output_path, speed)
+            audio_path = self._synthesize_with_gtts(text, voice_profile, temp_path, speed)
         elif voice_profile.engine == TTSEngine.PYTTSX3:
-            return self._synthesize_with_pyttsx3(text, voice_profile, output_path, speed)
+            audio_path = self._synthesize_with_pyttsx3(text, voice_profile, temp_path, speed)
         else:
             raise ValueError(f"Unsupported TTS engine: {voice_profile.engine}")
+
+        # Apply voice enhancement if enabled
+        if enable_enhancement:
+            try:
+                from app.services.voice import get_voice_enhancement
+
+                enhancement_service = get_voice_enhancement()
+                audio_path = enhancement_service.enhance_tts_output(
+                    tts_audio_path=audio_path,
+                    output_path=output_path,
+                    enable_enhancement=True,
+                )
+
+                # Cleanup temp file if different from output
+                if temp_path != output_path and temp_path.exists():
+                    temp_path.unlink()
+
+                return audio_path
+            except Exception as e:
+                logger.warning(f"Voice enhancement failed, using original audio: {e}")
+                # Move temp file to output if enhancement failed
+                if temp_path != output_path and temp_path.exists():
+                    import shutil
+
+                    shutil.move(str(temp_path), str(output_path))
+                    return output_path
+                return audio_path
+        else:
+            # Move temp file to output if enhancement disabled
+            if temp_path != output_path and temp_path.exists():
+                import shutil
+
+                shutil.move(str(temp_path), str(output_path))
+            return output_path
 
     def _synthesize_with_bark(
         self,
@@ -426,6 +465,7 @@ class VoiceSynthesisService:
         voice_profile: VoiceProfile,
         output_path: Path,
         chunk_sentences: bool = True,
+        enable_enhancement: bool = True,
     ) -> Path:
         """
         Synthesize song lyrics with appropriate phrasing.
@@ -438,6 +478,7 @@ class VoiceSynthesisService:
             voice_profile: Voice profile to use
             output_path: Output audio file path
             chunk_sentences: Whether to chunk by sentences
+            enable_enhancement: Whether to apply voice enhancement (default: True)
 
         Returns:
             Path to generated audio file
@@ -467,7 +508,9 @@ class VoiceSynthesisService:
 
             # Generate audio for chunk
             chunk_path = temp_dir / f"chunk_{i}.wav"
-            self.synthesize_text(chunk, voice_profile, chunk_path)
+            self.synthesize_text(
+                chunk, voice_profile, chunk_path, enable_enhancement=enable_enhancement
+            )
 
             # Load generated audio
             audio = AudioSegment.from_file(str(chunk_path))
@@ -487,7 +530,31 @@ class VoiceSynthesisService:
         combined = audio_segments[0]
         for segment in audio_segments[1:]:
             combined = combined + segment  # type: ignore
-        combined.export(str(output_path), format=output_path.suffix[1:])  # type: ignore
+
+        # Save combined audio
+        temp_combined_path = temp_dir / "combined.wav"
+        combined.export(str(temp_combined_path), format="wav")  # type: ignore
+
+        # Apply final enhancement to combined audio if enabled
+        if enable_enhancement:
+            try:
+                from app.services.voice import get_voice_enhancement
+
+                enhancement_service = get_voice_enhancement()
+                output_path = enhancement_service.enhance_tts_output(
+                    tts_audio_path=temp_combined_path,
+                    output_path=output_path,
+                    enable_enhancement=True,
+                )
+            except Exception as e:
+                logger.warning(f"Final enhancement failed, using combined audio: {e}")
+                import shutil
+
+                shutil.move(str(temp_combined_path), str(output_path))
+        else:
+            import shutil
+
+            shutil.move(str(temp_combined_path), str(output_path))
 
         # Cleanup temp directory
         temp_dir.rmdir()

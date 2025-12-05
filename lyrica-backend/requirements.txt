@@ -84,6 +84,15 @@ gTTS>=2.5.0  # Google Text-to-Speech
 # - Installing bark-tts from source with Python 3.12 patches
 # - Using external TTS APIs (ElevenLabs, Azure, AWS Polly)
 
+# Voice Enhancement (Neural Vocoders)
+# Primary: Vocos - Python 3.12 compatible neural vocoder
+vocos>=0.1.0  # Modern neural vocoder with Python 3.12 support
+# Alternative: parallel-wavegan (legacy, may have Python 3.12 issues)
+# parallel-wavegan>=0.5.0  # Uncomment if needed (requires Python <=3.11)
+#
+# Fallback: Enhanced audio processing (always available)
+# Uses librosa, scipy, numpy for quality improvements
+
 # Voice Activity Detection (Python 3.12 compatible)
 # silero-vad requires torch which is compatible with 3.12
 torch>=2.2.0
