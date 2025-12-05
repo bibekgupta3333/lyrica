@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     audio,
     audio_quality,
     auth,
+    enhancement,
     feedback,
     health,
     lyrics,
@@ -68,6 +69,9 @@ api_router.include_router(songs_complete.router, tags=["Complete Song Generation
 
 # Audio Quality & Optimization (WBS 2.15)
 api_router.include_router(audio_quality.router, tags=["Audio Quality & Optimization"])
+
+# Voice & Mixing Enhancement (WBS 11.4)
+api_router.include_router(enhancement.router, tags=["Voice & Mixing Enhancement"])
 
 # TODO: Add more routers as they are implemented
 # api_router.include_router(

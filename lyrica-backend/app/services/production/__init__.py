@@ -30,6 +30,7 @@ from app.services.production.genre_mixing import (
 from app.services.production.mastering import SongMasteringService, get_song_mastering
 from app.services.production.song_assembly import SongAssemblyService, get_song_assembly
 from app.services.production.stereo_imaging import StereoImagingService, get_stereo_imaging
+from app.services.production.unified_pipeline import UnifiedPipelineService, get_unified_pipeline
 
 __all__ = [
     "SongAssemblyService",
@@ -50,4 +51,6 @@ __all__ = [
     "get_genre_classification",
     "get_genre_mixing_presets",
     "get_reference_analysis",
+    "UnifiedPipelineService",
+    "get_unified_pipeline",
 ]

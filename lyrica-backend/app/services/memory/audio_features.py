@@ -14,7 +14,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mixing_config import AudioFeatureVector
-from app.services.production.frequency_balancing import get_frequency_analysis
 from app.services.vector_store import vector_store
 
 
@@ -68,7 +67,9 @@ class AudioFeatureVectorService:
         """
         logger.info(f"Extracting features from: {audio_path} (type: {feature_type})")
 
-        # Get frequency analysis
+        # Get frequency analysis (import here to avoid circular dependency)
+        from app.services.production.frequency_balancing import get_frequency_analysis
+
         freq_analysis = get_frequency_analysis()
         analysis = freq_analysis.analyze_frequency_content(audio_path)
 
