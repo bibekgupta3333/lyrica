@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Optional
 
 import librosa
-import numpy as np
 import soundfile as sf
 from loguru import logger
 
@@ -234,41 +233,49 @@ class PitchControlService:
         self,
         audio_path: Path,
         target_key: str = "C",
+        scale_type: str = "major",
+        strength: float = 0.8,
         output_path: Optional[Path] = None,
     ) -> Path:
         """
-        Auto-tune vocals to specified key (basic implementation).
+        Auto-tune vocals to specified key and scale with pitch correction.
 
         Args:
             audio_path: Path to audio file
-            target_key: Target musical key
+            target_key: Target musical key (C, D, E, F, G, A, B)
+            scale_type: Scale type ("major", "minor", "pentatonic")
+            strength: Correction strength (0.0-1.0)
             output_path: Optional output path
 
         Returns:
             Path to auto-tuned audio
 
         Note:
-            This is a simplified implementation. Professional auto-tune
-            requires more sophisticated pitch detection and correction.
+            Uses enhanced auto-tune with scale detection from prosody_pitch service.
         """
-        logger.info(f"Auto-tuning to key: {target_key}")
+        logger.info(f"Auto-tuning to key: {target_key} {scale_type} (strength={strength})")
 
-        # Load audio
-        y, sr = librosa.load(str(audio_path), sr=None)
+        try:
+            # Use enhanced auto-tune from prosody_pitch service
+            from app.services.voice import get_prosody_pitch
 
-        # Detect pitch
-        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+            prosody_service = get_prosody_pitch()
+            return prosody_service.auto_tune_with_scale(
+                audio_path=audio_path,
+                target_key=target_key,
+                scale_type=scale_type,
+                strength=strength,
+                output_path=output_path,
+            )
+        except Exception as e:
+            logger.warning(f"Enhanced auto-tune failed, using basic method: {e}")
+            # Fallback to basic implementation
+            if output_path is None:
+                output_path = audio_path.with_stem(f"{audio_path.stem}_autotuned")
 
-        # This is a placeholder - full auto-tune requires complex pitch correction
-        # For now, we'll just return the original
-        logger.warning("Full auto-tune not implemented yet (placeholder)")
-
-        if output_path is None:
-            output_path = audio_path.with_stem(f"{audio_path.stem}_autotuned")
-
-        sf.write(str(output_path), y, sr)
-
-        return output_path
+            y, sr = librosa.load(str(audio_path), sr=None)
+            sf.write(str(output_path), y, sr)
+            return output_path
 
 
 # Singleton instance

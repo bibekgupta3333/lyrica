@@ -93,6 +93,16 @@ vocos>=0.1.0  # Modern neural vocoder with Python 3.12 support
 # Fallback: Enhanced audio processing (always available)
 # Uses librosa, scipy, numpy for quality improvements
 
+# Prosody & Pitch Enhancement
+crepe>=0.0.13  # CREPE for accurate pitch tracking (Python 3.12 compatible)
+# Note: CREPE requires TensorFlow. Install with: pip install tensorflow
+# Falls back to librosa pitch tracking if TensorFlow not available
+
+# Quality Metrics
+pesq>=0.0.4  # PESQ (Perceptual Evaluation of Speech Quality)
+pystoi>=0.3.3  # STOI (Short-Time Objective Intelligibility)
+# Note: MOS (Mean Opinion Score) is estimated from audio features
+
 # Voice Activity Detection (Python 3.12 compatible)
 # silero-vad requires torch which is compatible with 3.12
 torch>=2.2.0
