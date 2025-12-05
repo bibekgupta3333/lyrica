@@ -8,6 +8,7 @@ from app.models.feedback import UserFeedback
 from app.models.generation import AgentLog, GenerationHistory
 from app.models.lyrics import Lyrics, LyricsSection
 from app.models.mixing_config import AudioFeatureVector, MixingConfiguration, ReferenceTrack
+from app.models.mixing_feedback import MixingFeedback, QualityMetricHistory
 from app.models.music_track import MusicTrack
 from app.models.song import Song
 from app.models.song_generation_history import SongGenerationHistory
@@ -41,6 +42,8 @@ __all__ = [
     "MixingConfiguration",
     "ReferenceTrack",
     "AudioFeatureVector",
+    "MixingFeedback",
+    "QualityMetricHistory",
     # Statistics
     "UsageStatistic",
 ]
