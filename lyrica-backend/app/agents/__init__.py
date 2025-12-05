@@ -24,6 +24,7 @@ Usage:
 
 from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.generation_agent import GenerationAgent
+from app.agents.memory_agent import MemoryAgent
 from app.agents.orchestrator import SongGenerationOrchestrator, get_orchestrator
 from app.agents.planning_agent import PlanningAgent
 from app.agents.refinement_agent import RefinementAgent
@@ -45,6 +46,7 @@ __all__ = [
     "GenerationAgent",
     "RefinementAgent",
     "EvaluationAgent",
+    "MemoryAgent",
     # State
     "AgentState",
     "AgentStatus",

@@ -14,6 +14,7 @@ from loguru import logger
 
 from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.generation_agent import GenerationAgent
+from app.agents.memory_agent import MemoryAgent
 from app.agents.planning_agent import PlanningAgent
 from app.agents.refinement_agent import RefinementAgent
 from app.agents.state import AgentState, WorkflowStatus
@@ -49,6 +50,7 @@ class SongGenerationOrchestrator:
 
         # Initialize agents
         self.planning_agent = PlanningAgent(llm_provider)
+        self.memory_agent = MemoryAgent(llm_provider)
         self.generation_agent = GenerationAgent(llm_provider)
         self.refinement_agent = RefinementAgent(llm_provider, max_refinement_iterations)
         self.evaluation_agent = EvaluationAgent(llm_provider, quality_threshold)
@@ -72,6 +74,7 @@ class SongGenerationOrchestrator:
 
         # Add agent nodes
         workflow.add_node("planning", self._planning_node)
+        workflow.add_node("memory", self._memory_node)
         workflow.add_node("generation", self._generation_node)
         workflow.add_node("refinement", self._refinement_node)
         workflow.add_node("evaluation", self._evaluation_node)
@@ -80,10 +83,20 @@ class SongGenerationOrchestrator:
         # Define workflow edges
         workflow.set_entry_point("planning")
 
-        # Planning -> Generation (or error)
+        # Planning -> Memory (or error)
         workflow.add_conditional_edges(
             "planning",
             self._check_planning_status,
+            {
+                "continue": "memory",
+                "error": "error_handler",
+            },
+        )
+
+        # Memory -> Generation (or error)
+        workflow.add_conditional_edges(
+            "memory",
+            self._check_memory_status,
             {
                 "continue": "generation",
                 "error": "error_handler",
@@ -140,6 +153,23 @@ class SongGenerationOrchestrator:
             logger.error(f"Planning node error: {str(e)}")
             state.add_error(f"Planning failed: {str(e)}")
             state.workflow_status = WorkflowStatus.FAILED
+            return state
+
+    async def _memory_node(self, state: AgentState) -> AgentState:
+        """Memory agent node."""
+        try:
+            # Memory agent doesn't require database session for recommendations
+            # It can work with cached data
+            updates = await self.memory_agent.run(state, db=None)
+            # Update state with returned values
+            for key, value in updates.items():
+                if hasattr(state, key):
+                    setattr(state, key, value)
+            return state
+        except Exception as e:
+            logger.warning(f"Memory node error (non-fatal): {str(e)}")
+            # Memory agent failures are non-fatal - continue workflow
+            state.add_message("Memory", f"Memory agent warning: {str(e)}", level="warning")
             return state
 
     async def _generation_node(self, state: AgentState) -> AgentState:
@@ -200,6 +230,11 @@ class SongGenerationOrchestrator:
         """Check if planning succeeded."""
         if state.workflow_status == WorkflowStatus.FAILED:
             return "error"
+        return "continue"
+
+    def _check_memory_status(self, state: AgentState) -> Literal["continue", "error"]:
+        """Check if memory agent succeeded (non-fatal)."""
+        # Memory agent failures are non-fatal - always continue
         return "continue"
 
     def _check_generation_status(self, state: AgentState) -> Literal["continue", "error"]:

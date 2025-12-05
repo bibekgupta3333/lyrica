@@ -1388,12 +1388,73 @@ python scripts/ingest_data.py --reset
 - Redis cache: Performance tested (5ms write, <1ms read)
 - Data integrity: Verified
 
-#### 11.3.2 Memory Agent Integration
+#### 11.3.2 Memory Agent Integration ✅
 
-- [ ] 11.3.2.1 Design MemoryAgent architecture
-- [ ] 11.3.2.2 Implement MemoryAgent class
-- [ ] 11.3.2.3 Integrate MemoryAgent with LangGraph workflow
-- [ ] 11.3.2.4 Extend AgentState with memory fields
+- [x] 11.3.2.1 Design MemoryAgent architecture ✅
+- [x] 11.3.2.2 Implement MemoryAgent class ✅
+- [x] 11.3.2.3 Integrate MemoryAgent with LangGraph workflow ✅
+- [x] 11.3.2.4 Extend AgentState with memory fields ✅
+
+**Status**: ✅ Complete - MemoryAgent integrated into LangGraph workflow.
+
+**Implementation**:
+- ✅ MemoryAgent architecture designed (`app/agents/memory_agent.py`)
+  - Learns from successful mixing configurations
+  - Analyzes reference tracks to extract mixing patterns
+  - Provides mixing recommendations based on genre, mood, and context
+  - Stores learned patterns in the memory system
+  - Genre inference from context (prompt, mood, theme)
+  - Integration with ConfigurationStorageService and ReferenceTrackStorageService
+  - Integration with GenreClassificationService and GenreMixingPresetsService
+- ✅ MemoryAgent class implemented
+  - `run()`: Main execution method that provides mixing recommendations
+  - `_get_mixing_recommendations()`: Retrieves genre presets, learned configurations, and reference tracks
+  - `_learn_from_state()`: Stores successful configurations for future use
+  - `_infer_genre_from_context()`: Heuristic-based genre inference
+  - `recommend_mixing_for_song()`: Provides recommendations for completed songs
+- ✅ LangGraph workflow integration (`app/agents/orchestrator.py`)
+  - MemoryAgent added as a node in the workflow graph
+  - Workflow: START -> Planning -> **Memory** -> Generation -> Refinement -> Evaluation -> END
+  - Memory node runs after planning to provide mixing recommendations
+  - Non-fatal failures: Memory agent errors don't stop the workflow
+  - Conditional edges: Memory -> Generation (or error handler)
+- ✅ AgentState extended with memory fields (`app/agents/state.py`)
+  - `memory_status`: AgentStatus field for tracking memory agent status
+  - `mixing_recommendations`: Optional dict with mixing recommendations
+  - `learned_genre`: Optional str with genre learned/classified by memory agent
+  - `reference_track_id`: Optional str with reference track ID used for matching
+  - Fields integrated into AgentState model with proper defaults
+
+**Testing**: ✅ All features tested locally and working correctly:
+- MemoryAgent initialization: All services initialized successfully
+- Genre inference: Correctly infers genre from context (tested with "rock song about freedom" -> "rock")
+- AgentState memory fields: All fields accessible and working
+- Orchestrator integration: MemoryAgent successfully integrated into workflow
+- Workflow compilation: LangGraph workflow compiles successfully with MemoryAgent node
+
+**Workflow Integration**:
+```
+START
+  ↓
+Planning Agent (designs song structure)
+  ↓
+Memory Agent (provides mixing recommendations) ← NEW
+  ↓
+Generation Agent (creates lyrics)
+  ↓
+Refinement Agent (improves quality)
+  ↓
+Evaluation Agent (scores lyrics)
+  ↓
+END
+```
+
+**Key Features**:
+- **Non-fatal**: Memory agent failures don't stop the workflow
+- **Context-aware**: Infers genre from prompt, mood, and theme
+- **Learning**: Stores successful configurations for future use
+- **Recommendations**: Provides genre presets, learned configs, and reference tracks
+- **Integration**: Seamlessly integrated with existing memory storage services
 
 #### 11.3.3 Learning Mechanisms
 

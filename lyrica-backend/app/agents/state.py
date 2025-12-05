@@ -150,6 +150,18 @@ class AgentState(BaseModel):
     rag_context: List[str] = Field(default_factory=list, description="Retrieved context from RAG")
     use_rag: bool = Field(default=True, description="Whether to use RAG")
 
+    # Memory agent output
+    memory_status: AgentStatus = Field(default=AgentStatus.PENDING)
+    mixing_recommendations: Optional[dict] = Field(
+        None, description="Mixing recommendations from memory agent"
+    )
+    learned_genre: Optional[str] = Field(
+        None, description="Genre learned/classified by memory agent"
+    )
+    reference_track_id: Optional[str] = Field(
+        None, description="Reference track ID used for matching"
+    )
+
     # Additional metadata
     metadata: dict = Field(default_factory=dict, description="Additional metadata")
 
