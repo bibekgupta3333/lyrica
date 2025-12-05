@@ -96,9 +96,39 @@ class SongAssemblyService:
                     vocals_path, music_path, output_path=music_sidechain_path
                 )
 
+                # Apply stereo imaging and spatial effects separately
+                from app.services.production.stereo_imaging import get_stereo_imaging
+
+                stereo_imaging = get_stereo_imaging()
+                vocals_spatial_path = temp_dir / "vocals_spatial.wav"
+                music_spatial_path = temp_dir / "music_spatial.wav"
+
+                vocals_spatial_path, music_spatial_path = (
+                    stereo_imaging.process_vocals_and_music_separately(
+                        vocals_path=vocals_eq_path,
+                        music_path=music_sidechain_path,
+                        vocals_width=1.0,  # Keep vocals centered
+                        music_width=1.5,  # Widen music
+                        vocals_reverb={
+                            "room_size": 0.3,
+                            "damping": 0.5,
+                            "wet_level": 0.2,
+                            "pre_delay_ms": 20.0,
+                        },
+                        music_reverb={
+                            "room_size": 0.5,
+                            "damping": 0.5,
+                            "wet_level": 0.3,
+                            "pre_delay_ms": 30.0,
+                        },
+                        output_vocals_path=vocals_spatial_path,
+                        output_music_path=music_spatial_path,
+                    )
+                )
+
                 # Use processed audio
-                vocals_path = vocals_eq_path
-                music_path = music_sidechain_path
+                vocals_path = vocals_spatial_path
+                music_path = music_spatial_path
             except Exception as e:
                 logger.warning(f"Intelligent mixing failed, using basic mixing: {e}")
                 # Fall back to basic mixing
