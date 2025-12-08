@@ -302,6 +302,9 @@ class VoiceEnhancementService:
 
         This is a fallback method when neural vocoders are not available.
         It applies noise reduction, EQ enhancement, compression, normalization.
+
+        CRITICAL: For TTS output (Edge TTS, etc.), enhancement can corrupt audio.
+        This method now uses conservative settings to preserve voice quality.
         """
         try:
             # Load audio
@@ -309,17 +312,32 @@ class VoiceEnhancementService:
 
             logger.info(f"Applying audio processing enhancement (quality: {quality})")
 
-            # Apply noise reduction (spectral gating)
-            audio = self._reduce_noise(audio, sr)
+            # CRITICAL: Check if this is TTS output (usually already clean)
+            # TTS engines like Edge TTS produce high-quality audio that doesn't need aggressive enhancement
+            rms = np.sqrt(np.mean(audio**2))
+            max_val = np.max(np.abs(audio))
+            signal_quality = rms / max_val if max_val > 0 else 0
 
-            # Apply EQ enhancement
-            audio = self._enhance_eq(audio, sr, quality)
+            # If audio is already clean (high signal quality), use minimal enhancement
+            if signal_quality > 0.15:  # Good quality TTS output
+                logger.info("Detected high-quality TTS output, using minimal enhancement")
+                # Only apply light normalization and gentle compression
+                audio = self._normalize_audio(audio)
+                # Skip aggressive noise reduction and EQ for clean TTS output
+            else:
+                # Audio is noisy or low quality, apply full enhancement
+                logger.info("Detected noisy audio, applying full enhancement")
+                # Apply noise reduction (spectral gating)
+                audio = self._reduce_noise(audio, sr)
 
-            # Apply compression
-            audio = self._apply_compression(audio, sr, quality)
+                # Apply EQ enhancement
+                audio = self._enhance_eq(audio, sr, quality)
 
-            # Normalize
-            audio = self._normalize_audio(audio)
+                # Apply compression
+                audio = self._apply_compression(audio, sr, quality)
+
+                # Normalize
+                audio = self._normalize_audio(audio)
 
             # Save enhanced audio
             sf.write(str(output_path), audio, sr)
@@ -329,7 +347,12 @@ class VoiceEnhancementService:
 
         except Exception as e:
             logger.error(f"Audio processing enhancement failed: {e}")
-            raise
+            # If enhancement fails, return original audio instead of raising
+            logger.warning("Enhancement failed, returning original audio")
+            import shutil
+
+            shutil.copy2(audio_path, output_path)
+            return output_path
 
     def _audio_to_melspectrogram(
         self, audio: np.ndarray, sr: int, vocoder_type: Optional[str] = None
@@ -392,26 +415,59 @@ class VoiceEnhancementService:
         Returns:
             Denoised audio
         """
-        # Simple spectral gating noise reduction
-        # Compute STFT
-        stft = librosa.stft(audio, hop_length=512, n_fft=2048)
-        magnitude = np.abs(stft)
-        phase = np.angle(stft)
+        # CRITICAL: For Edge TTS and other high-quality TTS engines,
+        # noise reduction can be too aggressive and remove voice content.
+        # Use very conservative settings or skip for TTS output.
 
-        # Estimate noise floor (using first 0.1 seconds)
-        noise_frames = int(0.1 * sr / 512)
-        noise_floor = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)
+        # Check if audio is already clean (TTS output usually is)
+        # If RMS is reasonable and audio has good dynamic range, skip noise reduction
+        rms = np.sqrt(np.mean(audio**2))
+        max_val = np.max(np.abs(audio))
 
-        # Apply spectral gating
-        threshold = noise_floor * 1.5
-        mask = magnitude > threshold
-        magnitude_clean = magnitude * mask
+        # If audio is already clean (high RMS relative to max), skip aggressive noise reduction
+        if rms > max_val * 0.1:  # Good signal-to-noise ratio
+            logger.debug("Audio appears clean, using light noise reduction")
+            # Use very light noise reduction - only remove obvious noise
+            stft = librosa.stft(audio, hop_length=512, n_fft=2048)
+            magnitude = np.abs(stft)
+            phase = np.angle(stft)
 
-        # Reconstruct audio
-        stft_clean = magnitude_clean * np.exp(1j * phase)
-        audio_clean = librosa.istft(stft_clean, hop_length=512)
+            # Estimate noise floor more conservatively
+            noise_frames = min(int(0.1 * sr / 512), magnitude.shape[1] // 10)
+            if noise_frames > 0:
+                noise_floor = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)
+                # Use much higher threshold (3x instead of 1.5x) to preserve voice
+                threshold = noise_floor * 3.0
+                # Soft gate instead of hard gate (preserves more content)
+                mask = np.maximum(0, 1 - (threshold / (magnitude + 1e-10)))
+                magnitude_clean = magnitude * np.maximum(mask, 0.3)  # Keep at least 30% of signal
+            else:
+                magnitude_clean = magnitude
 
-        return audio_clean
+            # Reconstruct audio
+            stft_clean = magnitude_clean * np.exp(1j * phase)
+            audio_clean = librosa.istft(stft_clean, hop_length=512)
+
+            return audio_clean
+        else:
+            # Audio is noisy, use standard noise reduction
+            logger.debug("Audio appears noisy, applying standard noise reduction")
+            stft = librosa.stft(audio, hop_length=512, n_fft=2048)
+            magnitude = np.abs(stft)
+            phase = np.angle(stft)
+
+            noise_frames = int(0.1 * sr / 512)
+            if noise_frames > 0 and noise_frames < magnitude.shape[1]:
+                noise_floor = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)
+                threshold = noise_floor * 2.0  # More conservative than before
+                mask = magnitude > threshold
+                magnitude_clean = magnitude * mask
+            else:
+                magnitude_clean = magnitude
+
+            stft_clean = magnitude_clean * np.exp(1j * phase)
+            audio_clean = librosa.istft(stft_clean, hop_length=512)
+            return audio_clean
 
     def _enhance_eq(self, audio: np.ndarray, sr: int, quality: str) -> np.ndarray:
         """
@@ -427,17 +483,32 @@ class VoiceEnhancementService:
         """
         from scipy import signal
 
-        # Design EQ filters for voice enhancement
-        # Boost frequencies important for speech clarity (1-4 kHz)
-        # High-pass filter to remove low-frequency noise
-        sos_hp = signal.butter(4, 80, "hp", fs=sr, output="sos")
+        # CRITICAL: For TTS output (especially Edge TTS), EQ can introduce artifacts.
+        # Use very conservative EQ settings.
+        # Only apply light high-pass filter to remove DC and very low frequencies
+        # Use gentler filter (2nd order instead of 4th) to avoid phase issues
+        sos_hp = signal.butter(2, 60, "hp", fs=sr, output="sos")  # 60Hz instead of 80Hz, gentler
         audio = signal.sosfilt(sos_hp, audio)
 
-        # Boost mid frequencies (1-4 kHz) for clarity
-        if quality in ["medium", "high"]:
-            # Parametric EQ boost at 2 kHz
-            b, a = signal.iirpeak(2000, Q=2, fs=sr)
-            audio = signal.filtfilt(b, a, audio * 0.3) + audio
+        # Only apply subtle EQ boost if quality is high and audio needs it
+        if quality == "high":
+            # Check if audio needs EQ boost (low mid-frequency content)
+            # Compute energy in mid frequencies
+            stft = librosa.stft(audio, hop_length=512, n_fft=2048)
+            freqs = librosa.fft_frequencies(sr=sr, n_fft=2048)
+            mid_freq_mask = (freqs >= 1000) & (freqs <= 4000)
+            mid_energy = np.mean(np.abs(stft[mid_freq_mask, :]))
+            total_energy = np.mean(np.abs(stft))
+
+            # Only boost if mid frequencies are weak
+            if mid_energy < total_energy * 0.3:
+                logger.debug("Applying subtle mid-frequency boost")
+                # Very subtle boost (0.15 instead of 0.3) to avoid artifacts
+                b, a = signal.iirpeak(2000, Q=3, fs=sr)  # Higher Q for narrower boost
+                boost = signal.filtfilt(b, a, audio * 0.15)  # Reduced boost amount
+                audio = audio + boost
+            else:
+                logger.debug("Mid frequencies already strong, skipping EQ boost")
 
         return audio
 
@@ -509,6 +580,37 @@ class VoiceEnhancementService:
 
         if output_path is None:
             output_path = tts_audio_path
+
+        # CRITICAL: Check if TTS output is already high quality
+        # High-quality TTS engines (Edge TTS, Coqui, etc.) produce clean audio
+        # that doesn't need aggressive enhancement
+        try:
+            import librosa
+            import numpy as np
+
+            audio, sr = librosa.load(str(tts_audio_path), sr=None, mono=True)
+            rms = np.sqrt(np.mean(audio**2))
+            max_val = np.max(np.abs(audio))
+            signal_quality = rms / max_val if max_val > 0 else 0
+
+            # If audio is already clean (high-quality TTS), use minimal enhancement
+            if signal_quality > 0.15:  # Good quality threshold
+                logger.info(
+                    f"Detected high-quality TTS output (quality={signal_quality:.2f}), "
+                    f"using minimal enhancement"
+                )
+                # Only normalize and apply very light processing
+                audio_normalized = self._normalize_audio(audio)
+
+                # Save with original sample rate
+                import soundfile as sf
+
+                sf.write(str(output_path), audio_normalized, sr)
+
+                logger.success(f"Minimal enhancement applied: {output_path}")
+                return output_path
+        except Exception as e:
+            logger.warning(f"Could not analyze TTS output quality: {e}, applying full enhancement")
 
         logger.info(f"Enhancing TTS output: {tts_audio_path}")
 

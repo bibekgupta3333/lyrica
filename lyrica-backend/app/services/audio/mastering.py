@@ -162,6 +162,131 @@ class AudioMasteringService:
         logger.success(f"Compressed audio saved: {output_path}")
         return output_path
 
+    def apply_harmonic_enhancement(
+        self,
+        audio_path: Path,
+        enhancement_strength: float = 0.3,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        PHASE 3: Apply harmonic enhancement for richer, warmer sound.
+
+        Adds subtle harmonic content to enhance the perceived quality
+        and warmth of the audio.
+
+        Args:
+            audio_path: Path to audio file
+            enhancement_strength: Enhancement strength (0.0-1.0)
+            output_path: Optional output path
+
+        Returns:
+            Path to enhanced audio
+
+        Example:
+            ```python
+            enhanced = service.apply_harmonic_enhancement(
+                Path("audio.wav"),
+                enhancement_strength=0.3
+            )
+            ```
+        """
+        logger.info(f"Applying harmonic enhancement: strength={enhancement_strength}")
+
+        # Load audio
+        y, sr = librosa.load(str(audio_path), sr=None)
+
+        # Generate harmonics (second and third harmonics)
+        # Second harmonic (octave)
+        y_harmonic2 = librosa.effects.pitch_shift(y, sr=sr, n_steps=12) * enhancement_strength * 0.3
+        # Third harmonic (octave + fifth)
+        y_harmonic3 = (
+            librosa.effects.pitch_shift(y, sr=sr, n_steps=19) * enhancement_strength * 0.15
+        )
+
+        # Mix harmonics with original
+        enhanced = y + y_harmonic2 + y_harmonic3
+
+        # Normalize to prevent clipping
+        max_val = np.max(np.abs(enhanced))
+        if max_val > 0.95:
+            enhanced = enhanced / max_val * 0.95
+
+        # Generate output path
+        if output_path is None:
+            output_path = audio_path.with_stem(f"{audio_path.stem}_harmonic_enhanced")
+
+        # Save
+        sf.write(str(output_path), enhanced, sr)
+
+        logger.success(f"Harmonic enhancement applied: {output_path}")
+        return output_path
+
+    def enhance_stereo_width(
+        self,
+        audio_path: Path,
+        width_factor: float = 1.1,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        PHASE 3: Enhance stereo width of audio.
+
+        Widens the stereo field for a more immersive sound.
+
+        Args:
+            audio_path: Path to audio file
+            width_factor: Stereo width factor (1.0 = no change, >1.0 = wider)
+            output_path: Optional output path
+
+        Returns:
+            Path to enhanced audio
+
+        Example:
+            ```python
+            widened = service.enhance_stereo_width(
+                Path("audio.wav"),
+                width_factor=1.2
+            )
+            ```
+        """
+        logger.info(f"Enhancing stereo width: factor={width_factor}")
+
+        # Load audio
+        y, sr = librosa.load(str(audio_path), sr=None, mono=False)
+
+        # Handle mono audio
+        if y.ndim == 1:
+            # Convert to stereo
+            y = np.array([y, y])
+
+        # Mid/side processing
+        mid = (y[0] + y[1]) / 2
+        side = (y[0] - y[1]) / 2
+
+        # Enhance side signal
+        side_enhanced = side * width_factor
+
+        # Reconstruct stereo
+        left = mid + side_enhanced
+        right = mid - side_enhanced
+
+        # Normalize to prevent clipping
+        max_val = max(np.max(np.abs(left)), np.max(np.abs(right)))
+        if max_val > 0.95:
+            left = left / max_val * 0.95
+            right = right / max_val * 0.95
+
+        enhanced = np.array([left, right])
+
+        # Generate output path
+        if output_path is None:
+            output_path = audio_path.with_stem(f"{audio_path.stem}_stereo_enhanced")
+
+        # Save
+        sf.write(str(output_path), enhanced.T, sr)
+
+        logger.success(f"Stereo width enhanced: {output_path}")
+        return output_path
+
     def master_audio(
         self,
         audio_path: Path,

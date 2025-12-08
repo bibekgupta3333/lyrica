@@ -14,9 +14,11 @@ This package provides complete song production capabilities including:
 from app.services.production.frequency_balancing import (
     DynamicEQService,
     FrequencyAnalysisService,
+    MultiBandCompressionService,
     SidechainCompressionService,
     get_dynamic_eq,
     get_frequency_analysis,
+    get_multiband_compression,
     get_sidechain_compression,
 )
 from app.services.production.genre_mixing import (
@@ -38,6 +40,7 @@ __all__ = [
     "FrequencyAnalysisService",
     "DynamicEQService",
     "SidechainCompressionService",
+    "MultiBandCompressionService",
     "StereoImagingService",
     "GenreClassificationService",
     "GenreMixingPresetsService",
@@ -47,6 +50,7 @@ __all__ = [
     "get_frequency_analysis",
     "get_dynamic_eq",
     "get_sidechain_compression",
+    "get_multiband_compression",
     "get_stereo_imaging",
     "get_genre_classification",
     "get_genre_mixing_presets",

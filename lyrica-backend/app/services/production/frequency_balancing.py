@@ -524,10 +524,19 @@ class SidechainCompressionService:
         vocals, sr_vocals = librosa.load(str(vocals_path), sr=None)
         music, sr_music = librosa.load(str(music_path), sr=None)
 
-        # Ensure same sample rate
+        # CRITICAL: Use HIGHEST sample rate to preserve quality (upsample, don't downsample)
+        # This prevents quality loss from downsampling
         if sr_vocals != sr_music:
-            music = librosa.resample(music, orig_sr=sr_music, target_sr=sr_vocals)
-            sr = sr_vocals
+            target_sr = max(sr_vocals, sr_music)
+            logger.info(
+                f"Normalizing sample rates for sidechain: "
+                f"vocals={sr_vocals}Hz, music={sr_music}Hz -> target={target_sr}Hz"
+            )
+            if sr_vocals != target_sr:
+                vocals = librosa.resample(vocals, orig_sr=sr_vocals, target_sr=target_sr)
+            if sr_music != target_sr:
+                music = librosa.resample(music, orig_sr=sr_music, target_sr=target_sr)
+            sr = target_sr
         else:
             sr = sr_vocals
 
@@ -620,6 +629,7 @@ class SidechainCompressionService:
 _freq_analysis_service: Optional[FrequencyAnalysisService] = None
 _dynamic_eq_service: Optional[DynamicEQService] = None
 _sidechain_service: Optional[SidechainCompressionService] = None
+_multiband_compression_service: Optional["MultiBandCompressionService"] = None
 
 
 def get_frequency_analysis() -> FrequencyAnalysisService:
@@ -638,9 +648,203 @@ def get_dynamic_eq() -> DynamicEQService:
     return _dynamic_eq_service
 
 
+class MultiBandCompressionService:
+    """
+    PHASE 3: Multi-band compression service for professional mixing.
+
+    Applies compression to different frequency bands independently,
+    allowing for more precise control over dynamics.
+    """
+
+    def __init__(self):
+        """Initialize multi-band compression service."""
+        logger.success("MultiBandCompressionService initialized")
+
+    def apply_multiband_compression(
+        self,
+        audio_path: Path,
+        bands: Optional[list[dict]] = None,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        Apply multi-band compression to audio.
+
+        Args:
+            audio_path: Path to audio file
+            bands: List of band configurations, each with:
+                - low_freq: Low frequency cutoff (Hz)
+                - high_freq: High frequency cutoff (Hz)
+                - threshold: Compression threshold (dB)
+                - ratio: Compression ratio
+                - attack_ms: Attack time (ms)
+                - release_ms: Release time (ms)
+            output_path: Optional output path
+
+        Returns:
+            Path to compressed audio
+
+        Example:
+            ```python
+            compressed = service.apply_multiband_compression(
+                Path("audio.wav"),
+                bands=[
+                    {"low_freq": 0, "high_freq": 250, "threshold": -18, "ratio": 3.0},
+                    {"low_freq": 250, "high_freq": 2000, "threshold": -20, "ratio": 4.0},
+                    {"low_freq": 2000, "high_freq": 20000, "threshold": -22, "ratio": 2.0},
+                ]
+            )
+            ```
+        """
+        logger.info(f"Applying multi-band compression: {audio_path}")
+
+        y, sr = librosa.load(str(audio_path), sr=None)
+
+        # Default bands if not specified
+        if bands is None:
+            bands = [
+                {
+                    "low_freq": 0,
+                    "high_freq": 250,
+                    "threshold": -18,
+                    "ratio": 3.0,
+                    "attack_ms": 5,
+                    "release_ms": 50,
+                },
+                {
+                    "low_freq": 250,
+                    "high_freq": 2000,
+                    "threshold": -20,
+                    "ratio": 4.0,
+                    "attack_ms": 3,
+                    "release_ms": 50,
+                },
+                {
+                    "low_freq": 2000,
+                    "high_freq": 20000,
+                    "threshold": -22,
+                    "ratio": 2.0,
+                    "attack_ms": 2,
+                    "release_ms": 30,
+                },
+            ]
+
+        # Split audio into frequency bands
+        band_signals = []
+        for i, band in enumerate(bands):
+            low_freq = band["low_freq"]
+            high_freq = min(band["high_freq"], sr // 2)
+
+            # Create bandpass filter
+            if low_freq == 0:
+                # Low-pass filter
+                b, a = signal.butter(4, high_freq / (sr / 2), "low")
+            elif high_freq >= sr // 2:
+                # High-pass filter
+                b, a = signal.butter(4, low_freq / (sr / 2), "high")
+            else:
+                # Bandpass filter
+                b, a = signal.butter(4, [low_freq / (sr / 2), high_freq / (sr / 2)], "band")
+
+            # Filter audio
+            band_signal = signal.filtfilt(b, a, y)
+            band_signals.append(band_signal)
+
+        # Apply compression to each band
+        compressed_bands = []
+        for i, (band_signal, band_config) in enumerate(zip(band_signals, bands)):
+            compressed_band = self._apply_band_compression(band_signal, sr, band_config)
+            compressed_bands.append(compressed_band)
+
+        # Sum compressed bands
+        compressed_audio = np.sum(compressed_bands, axis=0)
+
+        # Normalize to prevent clipping
+        max_val = np.max(np.abs(compressed_audio))
+        if max_val > 0.95:
+            compressed_audio = compressed_audio / max_val * 0.95
+
+        # Generate output path
+        if output_path is None:
+            output_path = audio_path.with_stem(f"{audio_path.stem}_multiband_compressed")
+
+        # Save
+        sf.write(str(output_path), compressed_audio, sr)
+        logger.success(f"Multi-band compression applied: {output_path}")
+        return output_path
+
+    def _apply_band_compression(self, audio: np.ndarray, sr: int, band_config: dict) -> np.ndarray:
+        """Apply compression to a single frequency band."""
+        threshold_linear = 10 ** (band_config["threshold"] / 20)
+        ratio = band_config["ratio"]
+        attack_ms = band_config.get("attack_ms", 5)
+        release_ms = band_config.get("release_ms", 50)
+
+        # Calculate RMS for compression detection
+        frame_length = int(sr * 0.01)  # 10ms frames
+        rms = librosa.feature.rms(y=audio, frame_length=frame_length)[0]
+
+        # Apply compression envelope
+        compressed = np.copy(audio)
+        gain_reduction = np.ones_like(audio)
+
+        for i in range(len(rms)):
+            frame_start = i * frame_length
+            frame_end = min((i + 1) * frame_length, len(audio))
+
+            if frame_start >= len(audio):
+                break
+
+            frame_rms = rms[i]
+            if frame_rms > threshold_linear:
+                # Calculate gain reduction
+                excess = frame_rms - threshold_linear
+                reduced_excess = excess / ratio
+                target_rms = threshold_linear + reduced_excess
+                gain_factor = target_rms / frame_rms
+
+                # Apply with attack/release smoothing
+                gain_reduction[frame_start:frame_end] = gain_factor
+
+        # Smooth gain reduction envelope
+        attack_samples = int(sr * attack_ms / 1000)
+        release_samples = int(sr * release_ms / 1000)
+
+        # Apply smoothing
+        smoothed_gain = np.ones_like(gain_reduction)
+        for i in range(len(gain_reduction)):
+            if i > 0:
+                if gain_reduction[i] < gain_reduction[i - 1]:
+                    # Attack
+                    smoothed_gain[i] = (
+                        gain_reduction[i - 1]
+                        + (gain_reduction[i] - gain_reduction[i - 1]) / attack_samples
+                    )
+                else:
+                    # Release
+                    smoothed_gain[i] = (
+                        gain_reduction[i - 1]
+                        + (gain_reduction[i] - gain_reduction[i - 1]) / release_samples
+                    )
+            else:
+                smoothed_gain[i] = gain_reduction[i]
+
+        # Apply compression
+        compressed = audio * smoothed_gain
+
+        return compressed
+
+
 def get_sidechain_compression() -> SidechainCompressionService:
     """Get or create sidechain compression service instance."""
     global _sidechain_service
     if _sidechain_service is None:
         _sidechain_service = SidechainCompressionService()
     return _sidechain_service
+
+
+def get_multiband_compression() -> MultiBandCompressionService:
+    """Get or create multi-band compression service instance."""
+    global _multiband_compression_service
+    if _multiband_compression_service is None:
+        _multiband_compression_service = MultiBandCompressionService()
+    return _multiband_compression_service

@@ -488,11 +488,27 @@ class StereoImagingService:
             if output_music_path is None:
                 output_music_path = music_path.with_stem(f"{music_path.stem}_spatial_processed")
 
+            # Ensure output directory exists
+            output_vocals_path.parent.mkdir(parents=True, exist_ok=True)
+            output_music_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Verify source files exist before copying
+            if not current_vocals.exists():
+                raise FileNotFoundError(f"Processed vocals file not found: {current_vocals}")
+            if not current_music.exists():
+                raise FileNotFoundError(f"Processed music file not found: {current_music}")
+
             # Copy to final output paths
             import shutil
 
             shutil.copy2(current_vocals, output_vocals_path)
             shutil.copy2(current_music, output_music_path)
+
+            # Verify copies were successful
+            if not output_vocals_path.exists():
+                raise FileNotFoundError(f"Failed to copy vocals to: {output_vocals_path}")
+            if not output_music_path.exists():
+                raise FileNotFoundError(f"Failed to copy music to: {output_music_path}")
 
             logger.success(
                 f"Separate processing complete: vocals={output_vocals_path}, "

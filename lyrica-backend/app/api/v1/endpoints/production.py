@@ -1082,26 +1082,50 @@ async def generate_complete_song(request: CompleteSongRequest):
         assembly_service = get_song_assembly()
         mastering_service = get_song_mastering()
 
-        # Step 1: Generate vocals
-        logger.info("Step 1/5: Generating vocals")
+        # Step 1: Generate vocals from lyrics
+        logger.info("Step 1/5: Generating vocals from lyrics")
+        from app.core.music_config import MusicGenre, MusicKey
         from app.core.voice_config import get_voice_profile
 
         voice_profile = get_voice_profile(request.voice_profile)
         vocals_path = base_path / "vocals.wav"
-        voice_service.synthesize_text(
-            text=request.lyrics_text, voice_profile=voice_profile, output_path=vocals_path
+        # Use synthesize_lyrics for better multi-line handling
+        voice_service.synthesize_lyrics(
+            lyrics=request.lyrics_text,
+            voice_profile=voice_profile,
+            output_path=vocals_path,
+            chunk_sentences=True,
         )
 
         # Step 2: Generate music
         logger.info("Step 2/5: Generating instrumental music")
-        music_prompt = f"{request.genre} instrumental at {request.bpm} BPM"
         music_path = base_path / "music.wav"
-        music_service.generate_music(
-            prompt=music_prompt, duration=request.duration, output_path=music_path
+
+        # Normalize genre and key to enums
+        try:
+            genre_enum = MusicGenre(request.genre.lower())
+        except ValueError:
+            genre_enum = MusicGenre.POP
+            logger.warning(f"Unknown genre '{request.genre}', defaulting to POP")
+
+        try:
+            key_enum = MusicKey.from_string(request.key) if request.key else None
+        except Exception:
+            key_enum = None
+            logger.warning(f"Could not parse key '{request.key}', using None")
+
+        # Use generate_by_genre for better genre-specific music
+        music_service.generate_by_genre(
+            genre=genre_enum,
+            mood=None,
+            key=key_enum,
+            bpm=request.bpm,
+            duration=request.duration,
+            output_path=music_path,
         )
 
-        # Step 3: Mix vocals and music
-        logger.info("Step 3/5: Mixing vocals and music")
+        # Step 3: Mix vocals and music with intelligent mixing
+        logger.info("Step 3/5: Mixing vocals and music with intelligent frequency balancing")
         mixed_path = base_path / "mixed.wav"
         assembly_service.assemble_song(
             vocals_path=vocals_path,
@@ -1110,6 +1134,8 @@ async def generate_complete_song(request: CompleteSongRequest):
             vocals_volume_db=0.0,
             music_volume_db=-5.0,
             crossfade_ms=500,
+            use_intelligent_mixing=True,  # Enable intelligent frequency balancing
+            genre=genre_enum,
         )
 
         # Step 4: Master song

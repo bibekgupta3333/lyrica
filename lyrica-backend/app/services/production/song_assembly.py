@@ -78,17 +78,89 @@ class SongAssemblyService:
             dynamic_eq = get_dynamic_eq()
             sidechain = get_sidechain_compression()
 
+            # CRITICAL: Normalize sample rates BEFORE intelligent mixing to prevent quality loss
+            # Load audio to check sample rates
+            vocals_audio = AudioSegment.from_file(str(vocals_path))
+            music_audio = AudioSegment.from_file(str(music_path))
+
+            # Determine target sample rate (use HIGHEST to preserve quality)
+            target_sr_before_processing = max(vocals_audio.frame_rate, music_audio.frame_rate)
+
+            # Normalize sample rates before processing
+            if vocals_audio.frame_rate != target_sr_before_processing:
+                logger.info(
+                    f"Normalizing vocals sample rate before processing: "
+                    f"{vocals_audio.frame_rate}Hz -> {target_sr_before_processing}Hz"
+                )
+                vocals_normalized_path = vocals_path.parent / f"{vocals_path.stem}_normalized.wav"
+                vocals_audio.set_frame_rate(target_sr_before_processing).export(
+                    str(vocals_normalized_path), format="wav"
+                )
+                vocals_path = vocals_normalized_path
+
+            if music_audio.frame_rate != target_sr_before_processing:
+                logger.info(
+                    f"Normalizing music sample rate before processing: "
+                    f"{music_audio.frame_rate}Hz -> {target_sr_before_processing}Hz"
+                )
+                music_normalized_path = music_path.parent / f"{music_path.stem}_normalized.wav"
+                music_audio.set_frame_rate(target_sr_before_processing).export(
+                    str(music_normalized_path), format="wav"
+                )
+                music_path = music_normalized_path
+
             # Create temporary paths for processed audio
             import tempfile
 
             temp_dir = Path(tempfile.mkdtemp())
 
             try:
-                # Apply dynamic EQ to vocals
-                vocals_eq_path = temp_dir / "vocals_eq.wav"
-                vocals_eq_path = dynamic_eq.apply_dynamic_eq(
-                    vocals_path, genre=genre, output_path=vocals_eq_path
-                )
+                # PHASE 3: Apply multi-band compression for professional mixing
+                from app.services.production.frequency_balancing import get_multiband_compression
+
+                multiband = get_multiband_compression()
+
+                # Apply multi-band compression to vocals
+                vocals_multiband_path = temp_dir / "vocals_multiband.wav"
+                try:
+                    vocals_multiband_path = multiband.apply_multiband_compression(
+                        audio_path=vocals_path,
+                        bands=[
+                            {
+                                "low_freq": 0,
+                                "high_freq": 250,
+                                "threshold": -18,
+                                "ratio": 3.0,
+                                "attack_ms": 5,
+                                "release_ms": 50,
+                            },
+                            {
+                                "low_freq": 250,
+                                "high_freq": 2000,
+                                "threshold": -20,
+                                "ratio": 4.0,
+                                "attack_ms": 3,
+                                "release_ms": 50,
+                            },
+                            {
+                                "low_freq": 2000,
+                                "high_freq": 20000,
+                                "threshold": -22,
+                                "ratio": 2.0,
+                                "attack_ms": 2,
+                                "release_ms": 30,
+                            },
+                        ],
+                        output_path=vocals_multiband_path,
+                    )
+                    vocals_eq_path = vocals_multiband_path
+                except Exception as e:
+                    logger.warning(f"Multi-band compression failed: {e}, using dynamic EQ")
+                    # Fallback to dynamic EQ
+                    vocals_eq_path = temp_dir / "vocals_eq.wav"
+                    vocals_eq_path = dynamic_eq.apply_dynamic_eq(
+                        vocals_path, genre=genre, output_path=vocals_eq_path
+                    )
 
                 # Apply sidechain compression to music (music ducks for vocals)
                 music_sidechain_path = temp_dir / "music_sidechain.wav"
@@ -126,55 +198,236 @@ class SongAssemblyService:
                     )
                 )
 
-                # Use processed audio
-                vocals_path = vocals_spatial_path
-                music_path = music_spatial_path
+                # Copy processed files to permanent locations before cleanup
+                # Use the song's base directory instead of temp directory
+                import shutil
+
+                final_vocals_path = vocals_path.parent / f"{vocals_path.stem}_processed.wav"
+                final_music_path = music_path.parent / f"{music_path.stem}_processed.wav"
+
+                # Ensure parent directories exist
+                final_vocals_path.parent.mkdir(parents=True, exist_ok=True)
+                final_music_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Verify source files exist before copying
+                if not vocals_spatial_path.exists():
+                    raise FileNotFoundError(
+                        f"Processed vocals file not found: {vocals_spatial_path}"
+                    )
+                if not music_spatial_path.exists():
+                    raise FileNotFoundError(f"Processed music file not found: {music_spatial_path}")
+
+                # Copy to permanent locations
+                shutil.copy2(vocals_spatial_path, final_vocals_path)
+                shutil.copy2(music_spatial_path, final_music_path)
+
+                # Verify copies were successful
+                if not final_vocals_path.exists():
+                    raise FileNotFoundError(f"Failed to copy vocals to: {final_vocals_path}")
+                if not final_music_path.exists():
+                    raise FileNotFoundError(f"Failed to copy music to: {final_music_path}")
+
+                # Use processed audio from permanent locations
+                vocals_path = final_vocals_path
+                music_path = final_music_path
+
             except Exception as e:
                 logger.warning(f"Intelligent mixing failed, using basic mixing: {e}")
-                # Fall back to basic mixing
+                # Fall back to basic mixing - vocals_path and music_path remain unchanged
             finally:
-                # Cleanup temp directory
+                # Cleanup temp directory (only after files are copied to permanent locations)
                 import shutil
 
                 if temp_dir.exists():
                     shutil.rmtree(temp_dir, ignore_errors=True)
 
         # Load audio files
+        logger.info(f"Loading vocals from: {vocals_path}")
         vocals = AudioSegment.from_file(str(vocals_path))
+        logger.info(f"Loading music from: {music_path}")
         music = AudioSegment.from_file(str(music_path))
 
-        # Adjust volumes
+        # Log initial properties
+        logger.info(
+            f"Vocals: {len(vocals)}ms, {vocals.frame_rate}Hz, {vocals.channels}ch, "
+            f"max={vocals.max}, rms={vocals.rms}"
+        )
+        logger.info(
+            f"Music: {len(music)}ms, {music.frame_rate}Hz, {music.channels}ch, "
+            f"max={music.max}, rms={music.rms}"
+        )
+
+        # CRITICAL: Normalize sample rates before mixing (prevents corruption)
+        target_sample_rate = max(vocals.frame_rate, music.frame_rate)
+        if vocals.frame_rate != target_sample_rate:
+            logger.info(
+                f"Converting vocals sample rate: {vocals.frame_rate}Hz -> {target_sample_rate}Hz"
+            )
+            vocals = vocals.set_frame_rate(target_sample_rate)
+        if music.frame_rate != target_sample_rate:
+            logger.info(
+                f"Converting music sample rate: {music.frame_rate}Hz -> {target_sample_rate}Hz"
+            )
+            music = music.set_frame_rate(target_sample_rate)
+
+        # CRITICAL: Normalize channels before mixing (both should be stereo for proper mixing)
+        target_channels = 2  # Use stereo for mixing
+        if vocals.channels != target_channels:
+            logger.info(f"Converting vocals channels: {vocals.channels} -> {target_channels}")
+            vocals = vocals.set_channels(target_channels)
+        if music.channels != target_channels:
+            logger.info(f"Converting music channels: {music.channels} -> {target_channels}")
+            music = music.set_channels(target_channels)
+
+        # Adjust volumes BEFORE mixing to prevent clipping
         if vocals_volume_db != 0:
             vocals = vocals + vocals_volume_db
+            logger.info(f"Adjusted vocals volume: {vocals_volume_db}dB")
 
         if music_volume_db != 0:
             music = music + music_volume_db
+            logger.info(f"Adjusted music volume: {music_volume_db}dB")
 
         # Synchronize lengths (match music to vocals length)
         if len(music) > len(vocals):
             # Trim music to vocals length
             music = music[: len(vocals)]
+            logger.info(f"Trimmed music to match vocals length: {len(music)}ms")
         elif len(music) < len(vocals):
             # Loop music to match vocals length
             repetitions = (len(vocals) // len(music)) + 1
             music = music * repetitions
             music = music[: len(vocals)]
+            logger.info(f"Looped music to match vocals length: {len(music)}ms")
 
         # Apply crossfade if specified
         if crossfade_ms > 0 and len(music) > crossfade_ms:
             # Crossfade at the beginning and end
             vocals = vocals.fade_in(crossfade_ms).fade_out(crossfade_ms)
             music = music.fade_in(crossfade_ms).fade_out(crossfade_ms)
+            logger.info(f"Applied crossfade: {crossfade_ms}ms")
+
+        # CRITICAL: Remove DC offset before mixing (prevents artifacts)
+        from pydub.effects import normalize as pydub_normalize
+
+        # Remove DC offset from vocals and music
+        vocals = pydub_normalize(vocals, headroom=0.1)  # Normalize with 0.1dB headroom
+        music = pydub_normalize(music, headroom=0.1)
+
+        # CRITICAL: Reduce volumes significantly before mixing to prevent clipping
+        # When mixing two tracks, we need more headroom (typically -6dB per track)
+        # This ensures the sum doesn't exceed 0dBFS
+        vocals = vocals - 6.0  # Reduce by 6dB for proper headroom
+        music = music - 6.0  # Reduce by 6dB for proper headroom
+
+        logger.info(f"Pre-mix levels: vocals={vocals.dBFS:.1f}dBFS, music={music.dBFS:.1f}dBFS")
 
         # Mix vocals and music
+        logger.info("Mixing vocals and music...")
         mixed = vocals.overlay(music)
+
+        # Check for clipping after mixing
+        if mixed.max >= mixed.max_possible_amplitude * 0.95:
+            logger.warning(
+                f"Mix is clipping (max={mixed.max}/{mixed.max_possible_amplitude}), applying limiter"
+            )
+            # Apply soft limiting to prevent clipping
+            # Reduce volume until we're below clipping threshold
+            while mixed.max >= mixed.max_possible_amplitude * 0.95:
+                mixed = mixed - 0.5  # Reduce by 0.5dB increments
+            logger.info(f"Applied limiting, new max={mixed.max}")
+
+        # CRITICAL: Normalize with proper headroom (don't push to maximum!)
+        # Use headroom to prevent clipping and ensure professional levels
+        target_headroom_db = 0.5  # 0.5dB headroom for safety
+        mixed = pydub_normalize(mixed, headroom=target_headroom_db)
+        logger.info(
+            f"Mixed audio: {len(mixed)}ms, {mixed.frame_rate}Hz, {mixed.channels}ch, max={mixed.max}, rms={mixed.rms}"
+        )
+
+        # PHASE 1 QUICK WIN: Improve volume balancing
+        # Ensure vocals are clearly audible relative to music
+        vocals_rms = vocals.rms
+        music_rms = music.rms
+        mixed_rms = mixed.rms
+
+        # Check if vocals are too quiet relative to music
+        if vocals_rms > 0 and music_rms > 0:
+            vocals_to_music_ratio = vocals_rms / music_rms
+            target_ratio = 1.2  # Vocals should be 20% louder than music
+
+            if vocals_to_music_ratio < 0.8:  # Vocals too quiet
+                logger.info(
+                    f"Vocals too quiet (ratio={vocals_to_music_ratio:.2f}), "
+                    f"adjusting balance to target ratio={target_ratio:.2f}"
+                )
+                # Boost vocals slightly
+                vocals_boost = (target_ratio - vocals_to_music_ratio) * 2.0  # dB
+                vocals = vocals + min(vocals_boost, 6.0)  # Max 6dB boost
+                # Re-mix with adjusted vocals
+                mixed = vocals.overlay(music)
+                # Re-normalize
+                mixed = pydub_normalize(mixed, headroom=target_headroom_db)
+                logger.info(f"Re-mixed with adjusted vocals balance")
+
+        # PHASE 1 QUICK WIN: Apply stereo enhancement to final mix
+        logger.info("Applying stereo enhancement to final mix")
+        try:
+            from app.services.production.stereo_imaging import get_stereo_imaging
+
+            stereo_service = get_stereo_imaging()
+
+            # Save mixed audio temporarily for stereo processing
+            import tempfile
+
+            temp_mixed_path = Path(tempfile.mktemp(suffix=".wav"))
+            mixed.export(str(temp_mixed_path), format="wav")
+
+            # Enhance stereo width slightly (1.1 = 10% wider)
+            temp_enhanced_path = Path(tempfile.mktemp(suffix=".wav"))
+            temp_enhanced_path = stereo_service.enhance_stereo_width(
+                audio_path=temp_mixed_path,
+                width_factor=1.1,  # Slight widening for professional sound
+                output_path=temp_enhanced_path,
+            )
+
+            # Load enhanced audio
+            mixed = AudioSegment.from_file(str(temp_enhanced_path))
+
+            # Cleanup temp files
+            temp_mixed_path.unlink(missing_ok=True)
+            temp_enhanced_path.unlink(missing_ok=True)
+
+            logger.info("Stereo enhancement applied to final mix")
+        except Exception as e:
+            logger.warning(f"Stereo enhancement failed: {e}, using original mix")
+
+        # Final normalization
+        mixed = pydub_normalize(mixed, headroom=target_headroom_db)
+        logger.info(
+            f"Final mixed audio: {len(mixed)}ms, {mixed.frame_rate}Hz, {mixed.channels}ch, "
+            f"max={mixed.max}, rms={mixed.rms}, dBFS={mixed.dBFS:.1f}dB"
+        )
 
         # Generate output path
         if output_path is None:
             output_path = self.output_path / "assembled_song.wav"
 
-        # Export
-        mixed.export(str(output_path), format="wav")
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Export with proper parameters to ensure quality
+        logger.info(f"Exporting mixed song to: {output_path}")
+        mixed.export(
+            str(output_path),
+            format="wav",
+            parameters=[
+                "-ac",
+                "2",
+                "-ar",
+                str(target_sample_rate),
+            ],  # Ensure stereo, correct sample rate
+        )
 
         logger.success(f"Song assembled: {output_path}")
         return output_path

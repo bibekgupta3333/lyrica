@@ -187,8 +187,22 @@ class VoiceSynthesisService:
         else:
             raise ValueError(f"Unsupported TTS engine: {voice_profile.engine}")
 
-        # Apply voice enhancement if enabled
-        if enable_enhancement:
+        # CRITICAL: Edge TTS and other high-quality TTS engines produce clean audio
+        # that doesn't need enhancement. Enhancement can actually corrupt the audio.
+        # Only apply enhancement if explicitly enabled AND engine needs it.
+        should_enhance = enable_enhancement
+
+        # Disable enhancement for high-quality TTS engines (Edge TTS, Coqui, Tortoise)
+        # These engines produce clean audio that enhancement corrupts
+        if voice_profile.engine in [TTSEngine.EDGE, TTSEngine.COQUI, TTSEngine.TORTOISE]:
+            logger.info(
+                f"Skipping enhancement for {voice_profile.engine.value} "
+                f"(high-quality TTS, enhancement not needed)"
+            )
+            should_enhance = False
+
+        # Apply voice enhancement only if needed
+        if should_enhance:
             try:
                 from app.services.voice import get_voice_enhancement
 
@@ -214,7 +228,7 @@ class VoiceSynthesisService:
                     return output_path
                 return audio_path
         else:
-            # Move temp file to output if enhancement disabled
+            # Move temp file to output if enhancement disabled or skipped
             if temp_path != output_path and temp_path.exists():
                 import shutil
 
@@ -347,6 +361,8 @@ class VoiceSynthesisService:
         from app.utils.async_utils import run_async_in_thread
 
         try:
+            # CRITICAL: Ensure output directory exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
 
             async def generate():
                 # Calculate rate adjustment
@@ -356,12 +372,37 @@ class VoiceSynthesisService:
                 communicate = edge_tts.Communicate(
                     text, voice_profile.engine_voice_id, rate=rate_str
                 )
-                await communicate.save(str(output_path))
+                # Save to temporary file first to ensure completion
+                temp_path = str(output_path) + ".tmp"
+                await communicate.save(temp_path)
+
+                # Move temp file to final location (ensures atomic write)
+                import shutil
+
+                shutil.move(temp_path, str(output_path))
+
+                # Verify file was created and has content
+                if not output_path.exists():
+                    raise RuntimeError(f"Edge TTS output file not created: {output_path}")
+                if output_path.stat().st_size == 0:
+                    raise RuntimeError(f"Edge TTS output file is empty: {output_path}")
 
             # Run async function safely (handles both sync and async contexts)
-            run_async_in_thread(generate())
+            # CRITICAL: Must wait for completion before returning
+            result = run_async_in_thread(generate())
 
-            logger.success(f"Edge TTS synthesis complete: {output_path}")
+            # Verify output file exists and is valid
+            if not output_path.exists():
+                raise RuntimeError(f"Edge TTS synthesis failed: output file not found")
+
+            # Check file size (should be > 0)
+            file_size = output_path.stat().st_size
+            if file_size == 0:
+                raise RuntimeError(f"Edge TTS synthesis failed: output file is empty")
+
+            logger.success(
+                f"Edge TTS synthesis complete: {output_path} ({file_size / 1024:.1f} KB)"
+            )
             return output_path
 
         except ImportError as e:
@@ -371,6 +412,9 @@ class VoiceSynthesisService:
             raise
         except Exception as e:
             logger.error(f"Edge TTS synthesis failed: {e}")
+            # Clean up partial files
+            if output_path.exists() and output_path.stat().st_size == 0:
+                output_path.unlink()
             raise
 
     def _synthesize_with_gtts(
@@ -527,16 +571,63 @@ class VoiceSynthesisService:
         if not audio_segments:
             raise ValueError("No audio segments to combine")
 
-        combined = audio_segments[0]
-        for segment in audio_segments[1:]:
+        # CRITICAL: Normalize sample rates and channels before combining
+        # Find the highest sample rate and use stereo for all segments
+        target_sample_rate = max(
+            seg.frame_rate for seg in audio_segments if hasattr(seg, "frame_rate")
+        )
+        target_channels = 2  # Use stereo for vocals
+
+        logger.info(
+            f"Normalizing {len(audio_segments)} audio segments: "
+            f"target_sr={target_sample_rate}Hz, target_channels={target_channels}"
+        )
+
+        normalized_segments = []
+        for i, segment in enumerate(audio_segments):
+            # Normalize sample rate
+            if segment.frame_rate != target_sample_rate:
+                logger.debug(
+                    f"Normalizing segment {i} sample rate: "
+                    f"{segment.frame_rate}Hz -> {target_sample_rate}Hz"
+                )
+                segment = segment.set_frame_rate(target_sample_rate)
+
+            # Normalize channels
+            if segment.channels != target_channels:
+                logger.debug(
+                    f"Normalizing segment {i} channels: " f"{segment.channels} -> {target_channels}"
+                )
+                segment = segment.set_channels(target_channels)
+
+            normalized_segments.append(segment)
+
+        # Combine normalized segments
+        combined = normalized_segments[0]
+        for segment in normalized_segments[1:]:
             combined = combined + segment  # type: ignore
 
-        # Save combined audio
+        # Save combined audio with proper format
         temp_combined_path = temp_dir / "combined.wav"
-        combined.export(str(temp_combined_path), format="wav")  # type: ignore
+        combined.export(
+            str(temp_combined_path),
+            format="wav",
+            parameters=["-ac", str(target_channels), "-ar", str(target_sample_rate)],
+        )
 
-        # Apply final enhancement to combined audio if enabled
-        if enable_enhancement:
+        # CRITICAL: Skip final enhancement for high-quality TTS engines
+        # Edge TTS, Coqui, and Tortoise produce clean audio that doesn't need enhancement
+        # Enhancement corrupts their output
+        should_enhance_final = enable_enhancement
+        if voice_profile.engine in [TTSEngine.EDGE, TTSEngine.COQUI, TTSEngine.TORTOISE]:
+            logger.info(
+                f"Skipping final enhancement for {voice_profile.engine.value} "
+                f"(high-quality TTS, enhancement not needed)"
+            )
+            should_enhance_final = False
+
+        # Apply final enhancement to combined audio only if needed
+        if should_enhance_final:
             try:
                 from app.services.voice import get_voice_enhancement
 
@@ -556,8 +647,127 @@ class VoiceSynthesisService:
 
             shutil.move(str(temp_combined_path), str(output_path))
 
-        # Cleanup temp directory
-        temp_dir.rmdir()
+        # PHASE 1 QUICK WIN: Apply professional vocal processing
+        # Normalize to -12dBFS, add compression, reverb, delay for professional quality
+        logger.info("Applying professional vocal processing (Quick Win)")
+        try:
+            from app.services.voice import get_vocal_effects
+
+            vocal_effects = get_vocal_effects()
+            temp_processed_path = output_path.parent / f"{output_path.stem}_processed_temp.wav"
+
+            # Step 1: Normalize to -12dBFS (professional vocal level)
+            current_audio = AudioSegment.from_file(str(output_path))
+            current_dBFS = current_audio.dBFS
+            target_dBFS = -12.0  # Professional vocal level
+
+            if current_dBFS < target_dBFS:
+                # Need to increase volume
+                gain_needed = target_dBFS - current_dBFS
+                logger.info(
+                    f"Normalizing vocals: {current_dBFS:.1f}dBFS -> {target_dBFS:.1f}dBFS "
+                    f"(gain: {gain_needed:+.1f}dB)"
+                )
+                current_audio = current_audio + gain_needed
+            elif current_dBFS > target_dBFS:
+                # Need to decrease volume
+                gain_needed = target_dBFS - current_dBFS
+                logger.info(
+                    f"Normalizing vocals: {current_dBFS:.1f}dBFS -> {target_dBFS:.1f}dBFS "
+                    f"(gain: {gain_needed:+.1f}dB)"
+                )
+                current_audio = current_audio + gain_needed
+
+            # Save normalized audio temporarily
+            current_audio.export(str(temp_processed_path), format="wav")
+
+            # Step 2: Apply compression for consistency
+            logger.info("Applying compression to vocals")
+            temp_compressed_path = output_path.parent / f"{output_path.stem}_compressed_temp.wav"
+            temp_compressed_path = vocal_effects.apply_compression(
+                audio_path=temp_processed_path,
+                threshold=-18.0,  # Professional vocal compression threshold
+                ratio=3.0,  # Moderate compression ratio
+                attack_ms=3.0,  # Fast attack
+                release_ms=50.0,  # Medium release
+                output_path=temp_compressed_path,
+            )
+
+            # Step 3: Apply subtle reverb for depth
+            logger.info("Applying subtle reverb to vocals")
+            temp_reverb_path = output_path.parent / f"{output_path.stem}_reverb_temp.wav"
+            temp_reverb_path = vocal_effects.add_reverb(
+                audio_path=temp_compressed_path,
+                room_size=0.3,  # Small room for vocals
+                damping=0.6,  # Moderate damping
+                wet_level=0.15,  # Subtle reverb (15% wet)
+                output_path=temp_reverb_path,
+            )
+
+            # Step 4: Apply subtle delay/echo for presence
+            logger.info("Applying subtle delay to vocals")
+            temp_delay_path = output_path.parent / f"{output_path.stem}_delay_temp.wav"
+            temp_delay_path = vocal_effects.add_echo(
+                audio_path=temp_reverb_path,
+                delay_ms=200,  # Short delay for presence
+                decay=0.2,  # Subtle decay
+                output_path=temp_delay_path,
+            )
+
+            # Final normalization to ensure -12dBFS target
+            final_audio = AudioSegment.from_file(str(temp_delay_path))
+            final_dBFS = final_audio.dBFS
+            if abs(final_dBFS - target_dBFS) > 1.0:  # If more than 1dB off
+                gain_adjustment = target_dBFS - final_dBFS
+                logger.info(
+                    f"Final vocal level adjustment: {final_dBFS:.1f}dBFS -> {target_dBFS:.1f}dBFS"
+                )
+                final_audio = final_audio + gain_adjustment
+
+            # Export final processed vocals
+            final_audio.export(str(output_path), format="wav")
+
+            # Cleanup temp files
+            for temp_file in [
+                temp_processed_path,
+                temp_compressed_path,
+                temp_reverb_path,
+                temp_delay_path,
+            ]:
+                if temp_file.exists():
+                    temp_file.unlink()
+
+            logger.success(
+                f"Professional vocal processing complete: {output_path} "
+                f"(final level: {final_audio.dBFS:.1f}dBFS)"
+            )
+
+        except Exception as e:
+            logger.warning(f"Professional vocal processing failed: {e}, using original audio")
+            # If processing fails, at least try to normalize to -12dBFS
+            try:
+                current_audio = AudioSegment.from_file(str(output_path))
+                current_dBFS = current_audio.dBFS
+                target_dBFS = -12.0
+                if abs(current_dBFS - target_dBFS) > 1.0:
+                    gain_needed = target_dBFS - current_dBFS
+                    normalized_audio = current_audio + gain_needed
+                    normalized_audio.export(str(output_path), format="wav")
+                    logger.info(
+                        f"Applied basic normalization: {current_dBFS:.1f}dBFS -> "
+                        f"{normalized_audio.dBFS:.1f}dBFS"
+                    )
+            except Exception as e2:
+                logger.warning(f"Basic normalization also failed: {e2}")
+
+        # Cleanup temp directory (use rmtree to handle non-empty directories)
+        try:
+            import shutil
+
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup temp directory {temp_dir}: {e}")
 
         logger.success(f"Lyrics synthesis complete: {output_path}")
         return output_path

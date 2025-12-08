@@ -56,17 +56,58 @@ class SongMasteringService:
             target_loudness = self._get_genre_target_loudness(genre)
             logger.info(f"Using {genre} mastering preset: {target_loudness} LUFS")
 
-        # Apply mastering chain
-        mastered_path = self.mastering_service.master_audio(
-            audio_path=song_path,
-            output_path=output_path,
-            target_loudness=target_loudness,
-            peak_limit=-1.0,  # Standard peak limit
-            apply_compression=True,
-        )
+        # PHASE 3: Apply enhanced mastering chain with stereo and harmonic enhancement
+        import tempfile
 
-        logger.success(f"Song mastered: {mastered_path}")
-        return mastered_path
+        temp_dir = Path(tempfile.mkdtemp())
+        try:
+            # Step 1: Apply compression
+            temp_compressed = temp_dir / "compressed.wav"
+            temp_compressed = self.mastering_service.master_audio(
+                audio_path=song_path,
+                output_path=temp_compressed,
+                target_loudness=target_loudness,
+                peak_limit=-1.0,  # Standard peak limit
+                apply_compression=True,
+            )
+
+            # Step 2: Apply harmonic enhancement
+            logger.info("Applying harmonic enhancement")
+            temp_harmonic = temp_dir / "harmonic.wav"
+            temp_harmonic = self.mastering_service.apply_harmonic_enhancement(
+                audio_path=temp_compressed,
+                enhancement_strength=0.25,  # Subtle enhancement
+                output_path=temp_harmonic,
+            )
+
+            # Step 3: Enhance stereo width
+            logger.info("Enhancing stereo width")
+            temp_stereo = temp_dir / "stereo.wav"
+            temp_stereo = self.mastering_service.enhance_stereo_width(
+                audio_path=temp_harmonic,
+                width_factor=1.1,  # Slight widening
+                output_path=temp_stereo,
+            )
+
+            # Step 4: Final loudness normalization
+            if output_path is None:
+                output_path = song_path.with_stem(f"{song_path.stem}_mastered")
+
+            mastered_path = self.mastering_service.normalize_loudness(
+                audio_path=temp_stereo,
+                target_loudness=target_loudness,
+                output_path=output_path,
+            )
+
+            logger.success(f"Song mastered with enhancements: {mastered_path}")
+            return mastered_path
+
+        finally:
+            # Cleanup temp directory
+            import shutil
+
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     def _get_genre_target_loudness(self, genre: str) -> float:
         """

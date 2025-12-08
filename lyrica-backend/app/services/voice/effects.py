@@ -301,6 +301,413 @@ class VocalEffectsService:
         logger.success(f"Harmonies added: {output_path}")
         return output_path
 
+    def add_vocal_doubling(
+        self,
+        audio_path: Path,
+        delay_ms: int = 20,
+        detune_cents: float = 5.0,
+        volume_db: float = -8.0,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        PHASE 3: Add vocal doubling effect (same pitch, slight delay and detune).
+
+        Vocal doubling creates a thicker, more professional sound by adding
+        a slightly delayed and detuned copy of the original vocal.
+
+        Args:
+            audio_path: Path to audio file
+            delay_ms: Delay in milliseconds (typically 10-30ms)
+            detune_cents: Detune amount in cents (typically 3-10 cents)
+            volume_db: Volume of doubled track in dB (typically -6 to -12dB)
+            output_path: Optional output path
+
+        Returns:
+            Path to audio with vocal doubling
+
+        Example:
+            ```python
+            doubled = service.add_vocal_doubling(
+                Path("vocals.wav"),
+                delay_ms=20,
+                detune_cents=5.0,
+                volume_db=-8.0
+            )
+            ```
+        """
+        logger.info(
+            f"Adding vocal doubling: delay={delay_ms}ms, detune={detune_cents}cents, "
+            f"volume={volume_db}dB"
+        )
+
+        from pydub import AudioSegment
+
+        # Load original
+        original = AudioSegment.from_file(str(audio_path))
+
+        # Create doubled track with slight delay
+        doubled = AudioSegment.silent(duration=delay_ms) + original
+
+        # Apply slight detune (pitch shift by cents)
+        semitones = detune_cents / 100.0  # Convert cents to semitones
+        if abs(semitones) > 0.001:  # Only if detune is significant
+            temp_detuned_path = audio_path.with_stem(f"{audio_path.stem}_detuned_temp")
+            self.shift_pitch(audio_path, semitones, temp_detuned_path)
+            doubled_detuned = AudioSegment.from_file(str(temp_detuned_path))
+            doubled_detuned = AudioSegment.silent(duration=delay_ms) + doubled_detuned
+            doubled = doubled_detuned
+            temp_detuned_path.unlink()
+
+        # Adjust volume of doubled track
+        doubled = doubled + volume_db
+
+        # Mix with original
+        # Ensure both tracks are same length
+        max_length = max(len(original), len(doubled))
+        original = original + AudioSegment.silent(duration=max_length - len(original))
+        doubled = doubled + AudioSegment.silent(duration=max_length - len(doubled))
+
+        # Mix
+        mixed = original.overlay(doubled)
+
+        # Generate output path
+        if output_path is None:
+            output_path = audio_path.with_stem(f"{audio_path.stem}_doubled")
+
+        # Save
+        mixed.export(str(output_path), format=audio_path.suffix[1:])
+
+        logger.success(f"Vocal doubling added: {output_path}")
+        return output_path
+
+    def quantize_timing(
+        self,
+        audio_path: Path,
+        bpm: float = 120.0,
+        strength: float = 0.8,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        PHASE 3: Quantize vocal timing to beat grid.
+
+        Aligns vocal timing to a musical grid based on BPM, correcting
+        timing inconsistencies for a more professional sound.
+
+        Args:
+            audio_path: Path to audio file
+            bpm: Beats per minute (tempo)
+            strength: Quantization strength (0.0-1.0, 1.0 = full quantization)
+            output_path: Optional output path
+
+        Returns:
+            Path to quantized audio
+
+        Note:
+            This is a simplified timing correction. Professional quantization
+            requires beat detection and per-note timing adjustment.
+
+        Example:
+            ```python
+            quantized = service.quantize_timing(
+                Path("vocals.wav"),
+                bpm=120.0,
+                strength=0.8
+            )
+            ```
+        """
+        logger.info(f"Quantizing timing: BPM={bpm}, strength={strength}")
+
+        import librosa
+        import soundfile as sf
+
+        # Load audio
+        y, sr = librosa.load(str(audio_path), sr=None)
+
+        # Calculate beat duration in samples
+        beat_duration_samples = int(sr * 60.0 / bpm)
+
+        # Detect onsets (vocal attacks)
+        onsets = librosa.onset.onset_detect(y=y, sr=sr, units="samples", backtrack=True)
+
+        # Quantize onsets to nearest beat
+        quantized_onsets = []
+        for onset in onsets:
+            # Find nearest beat position
+            beat_position = round(onset / beat_duration_samples) * beat_duration_samples
+            # Apply quantization strength
+            quantized_onset = int(onset + (beat_position - onset) * strength)
+            quantized_onsets.append(quantized_onset)
+
+        # Apply timing correction
+        # This is a simplified approach - professional quantization would
+        # require time-stretching individual segments
+        # For now, we'll apply a subtle time-stretch to align with grid
+        if strength > 0.5:
+            # Calculate average timing offset
+            if len(quantized_onsets) > 1:
+                original_intervals = np.diff(onsets[: len(quantized_onsets)])
+                quantized_intervals = np.diff(quantized_onsets)
+                if len(original_intervals) > 0 and np.mean(original_intervals) > 0:
+                    avg_ratio = np.mean(quantized_intervals) / np.mean(original_intervals)
+                    # Apply subtle time-stretch
+                    if 0.9 < avg_ratio < 1.1:  # Only if ratio is reasonable
+                        y_quantized = librosa.effects.time_stretch(y, rate=avg_ratio)
+                    else:
+                        y_quantized = y
+                else:
+                    y_quantized = y
+            else:
+                y_quantized = y
+        else:
+            y_quantized = y
+
+        # Generate output path
+        if output_path is None:
+            output_path = audio_path.with_stem(f"{audio_path.stem}_quantized")
+
+        # Save
+        sf.write(str(output_path), y_quantized, sr)
+
+        logger.success(f"Timing quantized: {output_path}")
+        return output_path
+
+    def add_ad_libs(
+        self,
+        audio_path: Path,
+        ad_lib_text: Optional[str] = None,
+        positions: Optional[list[float]] = None,
+        volume_db: float = -6.0,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        PHASE 3: Add ad-libs and vocal fills.
+
+        Adds background vocal ad-libs (like "yeah", "oh", "woo") at specified
+        positions to enhance the vocal performance.
+
+        Args:
+            audio_path: Path to main vocal track
+            ad_lib_text: Optional text for ad-libs (if None, uses generic fills)
+            positions: List of positions in seconds where ad-libs should be added
+            volume_db: Volume of ad-libs relative to main vocals
+            output_path: Optional output path
+
+        Returns:
+            Path to audio with ad-libs
+
+        Note:
+            This is a placeholder implementation. Full implementation would
+            require TTS synthesis of ad-lib text and intelligent placement.
+
+        Example:
+            ```python
+            with_adlibs = service.add_ad_libs(
+                Path("vocals.wav"),
+                ad_lib_text="yeah",
+                positions=[10.0, 30.0, 50.0],
+                volume_db=-6.0
+            )
+            ```
+        """
+        logger.info(f"Adding ad-libs: positions={positions}, volume={volume_db}dB")
+
+        from pydub import AudioSegment
+
+        # Load main vocals
+        main_vocals = AudioSegment.from_file(str(audio_path))
+
+        # If no positions specified, add ad-libs at strategic points
+        if positions is None:
+            duration_seconds = len(main_vocals) / 1000.0
+            # Add ad-libs at 25%, 50%, 75% of song
+            positions = [
+                duration_seconds * 0.25,
+                duration_seconds * 0.5,
+                duration_seconds * 0.75,
+            ]
+
+        # For now, create simple ad-lib sounds (short vocal-like sounds)
+        # In a full implementation, this would use TTS to generate ad-lib text
+        ad_lib_duration_ms = 500  # 0.5 seconds
+        ad_lib = AudioSegment.silent(duration=ad_lib_duration_ms)
+
+        # Add ad-libs at specified positions
+        for position_seconds in positions:
+            position_ms = int(position_seconds * 1000)
+            if position_ms < len(main_vocals):
+                # Create ad-lib (simplified - would use TTS in full implementation)
+                ad_lib_track = ad_lib + volume_db
+                # Mix at position
+                main_vocals = main_vocals.overlay(ad_lib_track, position=position_ms)
+
+        # Generate output path
+        if output_path is None:
+            output_path = audio_path.with_stem(f"{audio_path.stem}_adlibs")
+
+        # Save
+        main_vocals.export(str(output_path), format=audio_path.suffix[1:])
+
+        logger.success(f"Ad-libs added: {output_path}")
+        return output_path
+
+    def apply_professional_vocal_chain(
+        self,
+        audio_path: Path,
+        enable_auto_tune: bool = True,
+        enable_timing: bool = True,
+        enable_doubling: bool = True,
+        enable_harmony: bool = False,
+        enable_ad_libs: bool = False,
+        target_key: str = "C",
+        scale_type: str = "major",
+        bpm: float = 120.0,
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        PHASE 3: Apply complete professional vocal processing chain.
+
+        Applies all professional vocal processing effects in the correct order:
+        1. Timing correction (quantization)
+        2. Pitch correction (auto-tune)
+        3. Vocal doubling
+        4. Harmony layers (optional)
+        5. Ad-libs (optional)
+        6. Effects chain (compression, EQ, reverb, delay)
+
+        Args:
+            audio_path: Path to audio file
+            enable_auto_tune: Enable pitch correction
+            enable_timing: Enable timing quantization
+            enable_doubling: Enable vocal doubling
+            enable_harmony: Enable harmony layers
+            enable_ad_libs: Enable ad-libs
+            target_key: Target musical key for auto-tune
+            scale_type: Scale type for auto-tune
+            bpm: BPM for timing quantization
+            output_path: Optional output path
+
+        Returns:
+            Path to processed audio
+
+        Example:
+            ```python
+            processed = service.apply_professional_vocal_chain(
+                Path("vocals.wav"),
+                enable_auto_tune=True,
+                enable_timing=True,
+                enable_doubling=True,
+                target_key="C",
+                scale_type="major",
+                bpm=120.0
+            )
+            ```
+        """
+        logger.info("Applying professional vocal processing chain")
+
+        import tempfile
+
+        current_path = audio_path
+
+        # Step 1: Timing correction (quantization)
+        if enable_timing:
+            logger.info("Step 1/6: Quantizing timing")
+            temp_path = Path(tempfile.mktemp(suffix=".wav"))
+            current_path = self.quantize_timing(
+                current_path, bpm=bpm, strength=0.8, output_path=temp_path
+            )
+
+        # Step 2: Pitch correction (auto-tune)
+        if enable_auto_tune:
+            logger.info("Step 2/6: Applying auto-tune")
+            try:
+                from app.services.voice import get_prosody_pitch
+
+                prosody_service = get_prosody_pitch()
+                temp_path = Path(tempfile.mktemp(suffix=".wav"))
+                current_path = prosody_service.auto_tune_with_scale(
+                    audio_path=current_path,
+                    target_key=target_key,
+                    scale_type=scale_type,
+                    strength=0.8,
+                    output_path=temp_path,
+                )
+            except Exception as e:
+                logger.warning(f"Auto-tune failed: {e}, skipping")
+
+        # Step 3: Vocal doubling
+        if enable_doubling:
+            logger.info("Step 3/6: Adding vocal doubling")
+            temp_path = Path(tempfile.mktemp(suffix=".wav"))
+            current_path = self.add_vocal_doubling(
+                current_path, delay_ms=20, detune_cents=5.0, volume_db=-8.0, output_path=temp_path
+            )
+
+        # Step 4: Harmony layers (optional)
+        if enable_harmony:
+            logger.info("Step 4/6: Adding harmony layers")
+            temp_path = Path(tempfile.mktemp(suffix=".wav"))
+            current_path = self.add_harmony(
+                current_path, harmony_intervals=[4, 7], output_path=temp_path
+            )  # Major third and fifth
+
+        # Step 5: Ad-libs (optional)
+        if enable_ad_libs:
+            logger.info("Step 5/6: Adding ad-libs")
+            temp_path = Path(tempfile.mktemp(suffix=".wav"))
+            current_path = self.add_ad_libs(current_path, volume_db=-6.0, output_path=temp_path)
+
+        # Step 6: Effects chain (compression, EQ, reverb, delay)
+        logger.info("Step 6/6: Applying effects chain")
+        temp_path = Path(tempfile.mktemp(suffix=".wav"))
+
+        # Apply compression
+        temp_compressed = Path(tempfile.mktemp(suffix=".wav"))
+        temp_compressed = self.apply_compression(
+            current_path,
+            threshold=-18.0,
+            ratio=3.0,
+            attack_ms=3.0,
+            release_ms=50.0,
+            output_path=temp_compressed,
+        )
+
+        # Apply EQ
+        temp_eq = Path(tempfile.mktemp(suffix=".wav"))
+        temp_eq = self.apply_eq(
+            temp_compressed,
+            low_shelf_db=0.0,
+            mid_db=2.0,  # Slight mid boost for clarity
+            high_shelf_db=1.0,  # Slight high boost for presence
+            output_path=temp_eq,
+        )
+
+        # Apply reverb
+        temp_reverb = Path(tempfile.mktemp(suffix=".wav"))
+        temp_reverb = self.add_reverb(
+            temp_eq, room_size=0.3, damping=0.6, wet_level=0.15, output_path=temp_reverb
+        )
+
+        # Apply delay
+        final_path = temp_path
+        final_path = self.add_echo(temp_reverb, delay_ms=200, decay=0.2, output_path=final_path)
+
+        # Generate output path
+        if output_path is None:
+            output_path = audio_path.with_stem(f"{audio_path.stem}_professional")
+
+        # Copy to final location
+        import shutil
+
+        shutil.copy2(final_path, output_path)
+
+        # Cleanup temp files
+        for temp_file in [temp_path, temp_compressed, temp_eq, temp_reverb, final_path]:
+            if temp_file.exists() and temp_file != output_path:
+                temp_file.unlink(missing_ok=True)
+
+        logger.success(f"Professional vocal processing complete: {output_path}")
+        return output_path
+
     def denoise(
         self,
         audio_path: Path,
